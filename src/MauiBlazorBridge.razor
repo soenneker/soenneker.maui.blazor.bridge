@@ -1,0 +1,19 @@
+﻿@using Soenneker.Extensions.ValueTask
+
+@inherits MauiBlazorBridgeComponent
+
+<div id="@ElementId" @ref="_elementReference"></div>
+
+@code {
+
+    private ElementReference _elementReference;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await MauiBridgeInterop.ObserveElementPosition(_elementReference, ElementId).NoSync();
+        }
+    }
+
+}
