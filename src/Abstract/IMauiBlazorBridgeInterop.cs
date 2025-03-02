@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 
 namespace Soenneker.Maui.Blazor.Bridge.Abstract;
 
-public interface IMauiBridgeInterop : IAsyncDisposable
+public interface IMauiBlazorBridgeInterop : IAsyncDisposable
 {
-    ValueTask Init(CancellationToken cancellationToken = default);
+    ValueTask Initialize(CancellationToken cancellationToken = default);
 
     ValueTask ObserveElementPosition(ElementReference reference, string elementId, CancellationToken cancellationToken = default);
 }

@@ -10,36 +10,38 @@ using System.Threading.Tasks;
 
 namespace Soenneker.Maui.Blazor.Bridge;
 
-public class MauiBridgeInterop : IMauiBridgeInterop
+///<inheritdoc cref="IMauiBlazorBridgeInterop"/>
+public class MauiBlazorBridgeInterop : IMauiBlazorBridgeInterop
 {
     private readonly AsyncSingleton _moduleInitializer;
 
-    private const string _module = "Soenneker.Maui.Blazor.Bridge/js/mauibridgeinterop.js";
+    private const string _module = "Soenneker.Maui.Blazor.Bridge/js/mauiblazorbridgeinterop.js";
+    private const string _moduleNamespace = "MauiBlazorBridgeInterop";
 
     private readonly IResourceLoader _resourceLoader;
     private readonly IJSRuntime _jSRuntime;
 
-    public MauiBridgeInterop(IResourceLoader resourceLoader, IJSRuntime jSRuntime)
+    public MauiBlazorBridgeInterop(IResourceLoader resourceLoader, IJSRuntime jSRuntime)
     {
         _resourceLoader = resourceLoader;
         _jSRuntime = jSRuntime;
 
         _moduleInitializer = new AsyncSingleton(async (token, _) =>
         {
-            await resourceLoader.ImportModuleAndWaitUntilAvailable(_module, "MauiBridgeInterop", 100, token).NoSync();
+            await resourceLoader.ImportModuleAndWaitUntilAvailable(_module, _moduleNamespace, 100, token).NoSync();
 
             return new object();
         });
     }
 
-    public ValueTask Init(CancellationToken cancellationToken = default)
+    public ValueTask Initialize(CancellationToken cancellationToken = default)
     {
         return _moduleInitializer.Init(cancellationToken);
     }
 
-    public async ValueTask ObserveElementPosition(ElementReference reference, string elementId, CancellationToken cancellationToken = default)
+    public ValueTask ObserveElementPosition(ElementReference reference, string elementId, CancellationToken cancellationToken = default)
     {
-        await _jSRuntime.InvokeVoidAsync("MauiBridgeInterop.observeElementPosition", cancellationToken, reference, elementId).NoSync();
+        return _jSRuntime.InvokeVoidAsync($"{_moduleNamespace}.observeElementPosition", cancellationToken, reference, elementId);
     }
 
     public async ValueTask DisposeAsync()

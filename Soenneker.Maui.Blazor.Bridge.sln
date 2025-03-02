@@ -22,6 +22,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{81EF41E6-82F
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{47FB874E-6667-4D2D-AB56-2BE057BDE46F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Soenneker.Maui.Blazor.Bridge.Demo", "test\Soenneker.Maui.Blazor.Bridge.Demo\Soenneker.Maui.Blazor.Bridge.Demo.csproj", "{28C388FA-1AF8-4DBC-B945-BDEF8D05864B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,6 +38,10 @@ Global
 		{6456E465-9523-4612-9115-9D9B585B42E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6456E465-9523-4612-9115-9D9B585B42E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6456E465-9523-4612-9115-9D9B585B42E8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{28C388FA-1AF8-4DBC-B945-BDEF8D05864B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{28C388FA-1AF8-4DBC-B945-BDEF8D05864B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{28C388FA-1AF8-4DBC-B945-BDEF8D05864B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{28C388FA-1AF8-4DBC-B945-BDEF8D05864B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -44,6 +50,7 @@ Global
 		{41850636-33B4-4228-AE59-A2113F66B9FA} = {81EF41E6-82F4-404F-9FCE-049B4CBCE196}
 		{D786EC1A-4F59-412F-8624-83E6E3525B0C} = {4E42254D-039C-40ED-B3F4-8C1A94A366D1}
 		{6456E465-9523-4612-9115-9D9B585B42E8} = {47FB874E-6667-4D2D-AB56-2BE057BDE46F}
+		{28C388FA-1AF8-4DBC-B945-BDEF8D05864B} = {47FB874E-6667-4D2D-AB56-2BE057BDE46F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B849EC5C-B7B3-4C90-9B66-CBC15CCB776A}

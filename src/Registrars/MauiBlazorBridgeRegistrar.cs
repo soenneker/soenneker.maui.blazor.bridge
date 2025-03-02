@@ -9,8 +9,7 @@ public static class MauiBlazorBridgeRegistrar
 {
     public static IServiceCollection AddMauiBlazorBridgeAsScoped(this IServiceCollection services)
     {
-        services.AddBlazorCallbackRegistryAsScoped();
-        services.TryAddSingleton<IMauiBridgeInterop, MauiBridgeInterop>();
+        services.AddBlazorCallbackRegistryAsScoped().TryAddScoped<IMauiBlazorBridgeInterop, MauiBlazorBridgeInterop>();
 
         return services;
     }

@@ -1,4 +1,4 @@
-﻿export class MauiBridgeInterop {
+﻿export class MauiBlazorBridgeInterop {
 
     initialize(dotNetInstance) {
         this.dotNetInstance = dotNetInstance;
@@ -14,15 +14,15 @@
         const reportPosition = () => {
             const rect = element.getBoundingClientRect();
 
-            var eventArgs = {
+            var elementPositionDto = {
                 top: rect.top,
                 left: rect.left,
                 width: rect.width,
                 height: rect.height,
-                windowHeight: window.innerHeight
+                viewportHeight: window.innerHeight
             };
 
-            window.CallbackRegistryInterop.sendToCallback(id, eventArgs);
+            window.CallbackRegistryInterop.sendToCallback(id, elementPositionDto);
         };
 
         // Debounce the reporting function
@@ -55,4 +55,4 @@
 }
 
 // Export the instance for global use
-window.MauiBridgeInterop = new MauiBridgeInterop();
+window.MauiBlazorBridgeInterop = new MauiBlazorBridgeInterop();

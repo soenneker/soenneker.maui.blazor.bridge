@@ -1,0 +1,16 @@
+﻿<MauiBlazorBridge ComponentType="typeof(MauiLabel)"
+                           Properties="properties" />
+
+@code {
+    [Parameter] public string LabelText { get; set; } = "Hello from MAUI!";
+
+    Dictionary<string, object> properties = new Dictionary<string, object>();
+
+    protected override void OnInitialized()
+    {
+        properties.Add("Text", LabelText);
+
+        base.OnInitialized();
+    }
+
+}
