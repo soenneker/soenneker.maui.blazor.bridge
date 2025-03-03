@@ -9,6 +9,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <EnableDefaultCssItems>false</EnableDefaultCssItems>
         <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
 
         <!-- Display name -->
         <ApplicationTitle>Soenneker.Maui.Blazor.Bridge.Demo</ApplicationTitle>
