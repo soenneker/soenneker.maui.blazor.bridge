@@ -1,0 +1,190 @@
+﻿@using Microsoft.Maui
+@using Microsoft.Maui.ApplicationModel
+@using Microsoft.Maui.Controls
+@using Microsoft.Maui.Graphics
+@using Microsoft.Maui.Layouts
+@using Soenneker.Blazor.CallbackRegistry.Abstract
+@using Soenneker.Extensions.Task
+@using Soenneker.Extensions.ValueTask
+@using Soenneker.Maui.Blazor.Bridge.Abstract
+@using Soenneker.Maui.Blazor.Bridge.Dtos
+
+@typeparam TComponent where TComponent : View, new()
+
+<div id="@ElementId" @ref="_elementReference"></div>
+
+@code {
+    // A unique identifier for element interop.
+    private ElementReference _elementReference;
+
+    public readonly string ElementId = Guid.NewGuid().ToString();
+
+    [EditorRequired]
+    [Parameter]
+    public TComponent Component { get; set; } = null!;
+
+    [Inject]
+    public IBlazorCallbackRegistry BlazorCallbackRegistry { get; set; } = null!;
+
+    [Inject]
+    public IMauiBlazorBridgeInterop MauiBlazorBridgeInterop { get; set; } = null!;
+
+    private View? _overlayView; // Container for the native MAUI component
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await MauiBlazorBridgeInterop.Initialize().NoSync();
+
+        await BlazorCallbackRegistry.Register<ElementPositionDto>(
+            ElementId,
+            async result => { await OnElementPositionReported(null, result).NoSync(); }
+        ).NoSync();
+
+        // Ensure the MAUI element is rendered on the Main thread.
+        await MainThread.InvokeOnMainThreadAsync(async () => { await RenderMauiElement().NoSync(); }).NoSync();
+    }
+
+    private async ValueTask RenderMauiElement()
+    {
+        // Get the current window and ensure its Page is a ContentPage.
+        Window? window = Application.Current?.Windows.FirstOrDefault();
+        if (window == null)
+        {
+            Console.WriteLine("No window available.");
+            return;
+        }
+        if (!(window.Page is ContentPage contentPage))
+        {
+            Console.WriteLine("Page is not a ContentPage.");
+            return;
+        }
+
+        // Wait until the ContentPage's Handler and MauiContext are available.
+        while (contentPage.Handler?.MauiContext == null)
+        {
+            await Task.Delay(50);
+        }
+        var mauiContext = contentPage.Handler.MauiContext;
+
+        // Create an AbsoluteLayout to host both the existing content and our overlay.
+        var absoluteLayout = new AbsoluteLayout();
+
+        // If the page already has content (like a BlazorWebView), add it.
+        if (contentPage.Content is View existingContent)
+        {
+            AbsoluteLayout.SetLayoutFlags(existingContent, AbsoluteLayoutFlags.All);
+            AbsoluteLayout.SetLayoutBounds(existingContent, new Rect(0, 0, 1, 1));
+            absoluteLayout.Children.Add(existingContent);
+        }
+
+        // Use the provided Component instance directly.
+        View mauiComponent = Component;
+
+        // Force the creation of the handler using the MauiContext.
+        if (mauiComponent.Handler == null)
+        {
+            var handler = mauiContext.Handlers.GetHandler(mauiComponent.GetType());
+            if (handler is IViewHandler viewHandler)
+            {
+                viewHandler.SetMauiContext(mauiContext); // Ensure MauiContext is set
+                viewHandler.SetVirtualView(mauiComponent);
+                mauiComponent.Handler = viewHandler;
+                Console.WriteLine("Handler forced via MauiContext.");
+            }
+            else
+            {
+                Console.WriteLine("Failed to get an IViewHandler from MauiContext.");
+            }
+        }
+
+        // Wrap the component in a layout container.
+        Layout wrappedComponent = WrapInLayout(mauiComponent);
+
+        // Position the overlay using proportional coordinates.
+        _overlayView = wrappedComponent;
+        AbsoluteLayout.SetLayoutFlags(_overlayView, AbsoluteLayoutFlags.PositionProportional);
+        AbsoluteLayout.SetLayoutBounds(_overlayView, new Rect(0.5, 0.8, AbsoluteLayout.AutoSize, AbsoluteLayout.AutoSize));
+        absoluteLayout.Children.Add(_overlayView);
+
+        // Set the AbsoluteLayout as the page's content.
+        contentPage.Content = absoluteLayout;
+
+        // Allow time for layout and handler attachment.
+        await Task.Delay(100);
+
+        if (mauiComponent.Handler == null)
+        {
+            Console.WriteLine("Handler is still null after layout pass.");
+        }
+        else
+        {
+            Console.WriteLine("Handler created successfully.");
+        }
+
+        // Set up additional interop (e.g., observe element position).
+        await MauiBlazorBridgeInterop.ObserveElementPosition(_elementReference, ElementId).NoSync();
+    }
+
+    private async Task OnElementPositionReported(object? sender, ElementPositionDto e)
+    {
+        double height = await GetPageHeight();
+
+        // Compute a conversion factor (Maui page height / viewport height).
+        double conversionFactor = height / e.ViewportHeight;
+
+        // Calculate desired overlay Y position in CSS pixels, then convert to Maui units.
+        double dynamicOffsetCss = e.Height * 0.5;
+        double overlayYCss = e.Top + e.Height + dynamicOffsetCss;
+        double overlayYMaui = overlayYCss * conversionFactor;
+        double yProportion = overlayYMaui / height;
+
+        await MainThread.InvokeOnMainThreadAsync(() =>
+        {
+            if (_overlayView != null)
+            {
+                AbsoluteLayout.SetLayoutFlags(_overlayView, AbsoluteLayoutFlags.PositionProportional);
+                AbsoluteLayout.SetLayoutBounds(_overlayView, new Rect(0.5, yProportion, AbsoluteLayout.AutoSize, AbsoluteLayout.AutoSize));
+            }
+        });
+    }
+
+    private async ValueTask<double> GetPageHeight()
+    {
+        Page? page = Application.Current?.Windows.FirstOrDefault()?.Page;
+        double? height = page?.Height;
+
+        while (height is null or <= 0)
+        {
+            await Task.Delay(100);
+            height = page?.Height;
+        }
+
+        return height.Value;
+    }
+
+    // Simple wrapper that places the MAUI component in a Grid.
+    private Layout WrapInLayout(View mauiComponent)
+    {
+        var grid = new Grid
+        {
+            RowDefinitions =
+            {
+                new RowDefinition { Height = GridLength.Auto }
+            },
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = GridLength.Auto }
+            },
+            HorizontalOptions = LayoutOptions.Start,
+            VerticalOptions = LayoutOptions.Start
+        };
+        grid.Children.Add(mauiComponent);
+        return grid;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        GC.SuppressFinalize(this);
+        BlazorCallbackRegistry.Unregister(ElementId);
+    }
+}
