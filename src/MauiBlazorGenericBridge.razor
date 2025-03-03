@@ -1,10 +1,8 @@
-﻿@using System.Reflection
-@using Microsoft.Maui
+﻿@using Microsoft.Maui
 @using Microsoft.Maui.ApplicationModel
 @using Microsoft.Maui.Controls
 @using Microsoft.Maui.Graphics
 @using Microsoft.Maui.Layouts
-@using Microsoft.Maui.Platform
 @using Soenneker.Blazor.CallbackRegistry.Abstract
 @using Soenneker.Extensions.Task
 @using Soenneker.Extensions.ValueTask
@@ -83,8 +81,15 @@
 
     private View? _overlayView; // The container for the native MAUI component
 
+    private bool _initialized;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_initialized)
+            return;
+
+        _initialized = true;
+
         await MauiBlazorBridgeInterop.Initialize().NoSync();
 
         await BlazorCallbackRegistry.Register<ElementPositionDto>(ElementId, async result => { await OnElementPositionReported(null, result).NoSync(); }).NoSync();
@@ -95,7 +100,7 @@
     private async ValueTask RenderMauiElement()
     {
         // Get the current window and ensure its Page is a ContentPage.
-        Window? window = Application.Current?.Windows.FirstOrDefault();
+        var window = Application.Current?.Windows.FirstOrDefault();
         if (window == null)
         {
             Console.WriteLine("No window available.");
@@ -160,7 +165,7 @@
 
 
         // Wrap the component in a layout container.
-        Layout wrappedComponent = WrapInLayout(mauiComponent);
+        var wrappedComponent = WrapInLayout(mauiComponent);
 
         // Position the overlay using proportional coordinates.
         _overlayView = wrappedComponent;
@@ -191,24 +196,24 @@
 
     private async Task OnElementPositionReported(object? sender, ElementPositionDto e)
     {
-        double height = await GetPageHeight();
+        var height = await GetPageHeight();
 
         // Compute a conversion factor:
         // e.ViewportHeight is the viewport height in CSS pixels from JS,
         // and page.Height is the Maui page height.
-        double conversionFactor = height / e.ViewportHeight;
+        var conversionFactor = height / e.ViewportHeight;
 
         // Calculate the desired overlay Y position in CSS pixels.
         // For example, take the bottom of the element and add a dynamic offset
         // (here, we add half the element's height).
-        double dynamicOffsetCss = e.Height * 0.5;
-        double overlayYCss = e.Top + e.Height + dynamicOffsetCss;
+        var dynamicOffsetCss = e.Height * 0.5;
+        var overlayYCss = e.Top + e.Height + dynamicOffsetCss;
 
         // Convert the CSS pixel value to Maui units using the conversion factor.
-        double overlayYMaui = overlayYCss * conversionFactor;
+        var overlayYMaui = overlayYCss * conversionFactor;
 
         // Convert to a proportional value (0 to 1) relative to the Maui page height.
-        double yProportion = overlayYMaui / height;
+        var yProportion = overlayYMaui / height;
 
         await MainThread.InvokeOnMainThreadAsync(() =>
         {
@@ -224,9 +229,9 @@
     // For annoying deferred execution
     private async ValueTask<double> GetPageHeight()
     {
-        Page? page = Application.Current?.Windows.FirstOrDefault()?.Page;
+        var page = Application.Current?.Windows.FirstOrDefault()?.Page;
 
-        double? height = page?.Height;
+        var height = page?.Height;
 
         while (height is null or <= 0)
         {
@@ -283,10 +288,10 @@
     {
         foreach (KeyValuePair<string, object> prop in Properties)
         {
-            PropertyInfo? propertyInfo = mauiComponent.GetType().GetProperty(prop.Key);
+            var propertyInfo = mauiComponent.GetType().GetProperty(prop.Key);
             if (propertyInfo != null && prop.Value != null)
             {
-                object? convertedValue = ConvertValue(propertyInfo.PropertyType, prop.Value);
+                var convertedValue = ConvertValue(propertyInfo.PropertyType, prop.Value);
                 propertyInfo.SetValue(mauiComponent, convertedValue);
             }
         }
@@ -294,19 +299,19 @@
 
     private void SetComponentSpecificProperties(View mauiComponent)
     {
-        PropertyInfo? textProperty = mauiComponent.GetType().GetProperty("Text");
+        var textProperty = mauiComponent.GetType().GetProperty("Text");
         if (textProperty != null && !string.IsNullOrEmpty(Text))
             textProperty.SetValue(mauiComponent, Text);
 
-        PropertyInfo? textColorProperty = mauiComponent.GetType().GetProperty("TextColor");
+        var textColorProperty = mauiComponent.GetType().GetProperty("TextColor");
         if (textColorProperty != null && !string.IsNullOrEmpty(TextColor))
             textColorProperty.SetValue(mauiComponent, Color.FromArgb(TextColor));
 
-        PropertyInfo? fontSizeProperty = mauiComponent.GetType().GetProperty("FontSize");
+        var fontSizeProperty = mauiComponent.GetType().GetProperty("FontSize");
         if (fontSizeProperty != null && FontSize.HasValue)
             fontSizeProperty.SetValue(mauiComponent, FontSize.Value);
 
-        PropertyInfo? paddingProperty = mauiComponent.GetType().GetProperty("Padding");
+        var paddingProperty = mauiComponent.GetType().GetProperty("Padding");
         if (paddingProperty != null && Padding.HasValue)
             paddingProperty.SetValue(mauiComponent, new Thickness(Padding.Value));
     }
@@ -325,7 +330,7 @@
             return int.Parse(intString);
         if (targetType == typeof(Thickness) && value is string thicknessString)
         {
-            double[] values = thicknessString.Split(',').Select(double.Parse).ToArray();
+            var values = thicknessString.Split(',').Select(double.Parse).ToArray();
             return values.Length switch
             {
                 1 => new Thickness(values[0]),
@@ -355,8 +360,10 @@
             var stackLayout = new VerticalStackLayout
             {
                 VerticalOptions = VerticalOptions ?? LayoutOptions.Start,
-                HorizontalOptions = HorizontalOptions ?? LayoutOptions.Start
+                HorizontalOptions = HorizontalOptions ?? LayoutOptions.Start,
+                BackgroundColor = Colors.Transparent
             };
+
             stackLayout.Children.Add(mauiComponent);
             return stackLayout;
         }
@@ -366,7 +373,8 @@
             var stackLayout = new HorizontalStackLayout
             {
                 VerticalOptions = VerticalOptions ?? LayoutOptions.Start,
-                HorizontalOptions = HorizontalOptions ?? LayoutOptions.Start
+                HorizontalOptions = HorizontalOptions ?? LayoutOptions.Start,
+                BackgroundColor = Colors.Transparent
             };
             stackLayout.Children.Add(mauiComponent);
             return stackLayout;
@@ -383,17 +391,88 @@
                 new ColumnDefinition {Width = GridLength.Auto}
             },
             HorizontalOptions = LayoutOptions.Start,
-            VerticalOptions = LayoutOptions.Start
+            VerticalOptions = LayoutOptions.Start,
+            BackgroundColor = Colors.Transparent
         };
         grid.Children.Add(mauiComponent);
         return grid;
+    }
+
+    public async ValueTask RemoveElement()
+    {
+        BlazorCallbackRegistry.Unregister(ElementId);
+
+        await MainThread.InvokeOnMainThreadAsync(async () =>
+        {
+            if (_overlayView != null)
+            {
+                try
+                {
+                    // Ensure _overlayView is removed from its parent
+                    if (_overlayView.Parent is Layout parentLayout)
+                    {
+                        parentLayout.Children.Remove(_overlayView);
+                        Console.WriteLine("Successfully removed _overlayView from parent layout.");
+                    }
+
+                    // Get current window and check for AbsoluteLayout
+                    var window = Application.Current?.Windows.FirstOrDefault();
+                    if (window?.Page is ContentPage contentPage && contentPage.Content is AbsoluteLayout absoluteLayout)
+                    {
+                        // **Check if _overlayView was wrapped inside a Grid**
+                        var parentGrid = absoluteLayout.Children.FirstOrDefault(c => c is Grid grid && grid.Children.Contains(_overlayView)) as Grid;
+
+                        // Remove the wrapping Grid if it was added
+                        if (parentGrid != null)
+                        {
+                            absoluteLayout.Children.Remove(parentGrid);
+                            Console.WriteLine("Successfully removed wrapping Grid from AbsoluteLayout.");
+                        }
+                        else if (absoluteLayout.Children.Contains(_overlayView))
+                        {
+                            absoluteLayout.Children.Remove(_overlayView);
+                            Console.WriteLine("Successfully removed _overlayView from AbsoluteLayout.");
+                        }
+
+                        // Disconnect handler to fully release the view
+                        _overlayView.Handler?.DisconnectHandler();
+                        _overlayView.Handler = null;
+                        _overlayView = null;
+
+                        // Ensure no pending updates before modifying contentPage.Content
+                        await Task.Delay(50);
+
+                        // **Check if only the removed elements were targeted**
+                        Console.WriteLine($"AbsoluteLayout children count after removal: {absoluteLayout.Children.Count}");
+                        if (absoluteLayout.Children.Count == 0)
+                        {
+                            Console.WriteLine("AbsoluteLayout is empty; resetting contentPage.Content.");
+                            contentPage.Content = null;
+                        }
+                        else
+                        {
+                            Console.WriteLine("Keeping AbsoluteLayout as it still has children.");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error removing _overlayView: {ex.Message}");
+                }
+            }
+
+            await Task.Delay(50);
+        });
     }
 
     public async ValueTask DisposeAsync()
     {
         GC.SuppressFinalize(this);
 
-        BlazorCallbackRegistry.Unregister(ElementId);
+        if (_overlayView != null)
+        {
+            await RemoveElement().NoSync();
+        }
     }
 
 }
