@@ -53,7 +53,7 @@ Wrap the **BlazorWebView** inside a `Grid`, and include an **AbsoluteLayout** (`
     </BlazorWebView>
 
     <!-- Overlay for native MAUI components -->
-    <AbsoluteLayout x:Name="OverlayContainer" BackgroundColor="Transparent" />
+    <AbsoluteLayout x:Name="OverlayContainer" BackgroundColor="Transparent" InputTransparent="True" />
 </Grid>
 ```
 
