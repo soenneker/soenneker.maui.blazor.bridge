@@ -15,9 +15,8 @@
 
 @code {
 
-    // A unique identifier for element interop.
+    // Unique ID used for element interop.
     private ElementReference _elementReference;
-
     public readonly string ElementId = Guid.NewGuid().ToString();
 
     [EditorRequired] [Parameter] public TComponent? Component { get; set; }
@@ -26,8 +25,8 @@
 
     [Inject] public IMauiBlazorBridgeInterop MauiBlazorBridgeInterop { get; set; } = null!;
 
-    private View? _overlayView; // Container for the native MAUI component
-
+    // The wrapped MAUI element that will be added to the overlay container.
+    private View? _overlayView;
     private bool _initialized;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -44,7 +43,7 @@
 
         await BlazorCallbackRegistry.Register<ElementPositionDto>(ElementId, async result => { await OnElementPositionReported(null, result).NoSync(); }).NoSync();
 
-        // Ensure the MAUI element is rendered on the Main thread.
+        // Render the MAUI element on the Main thread.
         await MainThread.InvokeOnMainThreadAsync(async () => { await RenderMauiElement().NoSync(); }).NoSync();
     }
 
@@ -70,30 +69,23 @@
             await Task.Delay(50);
         }
 
-
         var mauiContext = contentPage.Handler.MauiContext;
 
-        // Create an AbsoluteLayout to host both the existing content and our overlay.
-        var absoluteLayout = new AbsoluteLayout
+        // Retrieve the pre-defined overlay container by name.
+        var overlayContainer = contentPage.FindByName<AbsoluteLayout>("OverlayContainer");
+        if (overlayContainer == null)
         {
-            BackgroundColor = Colors.Transparent
-        };
-
-        // If the page already has content (like a BlazorWebView), add it.
-        if (contentPage.Content is View existingContent)
-        {
-            AbsoluteLayout.SetLayoutFlags(existingContent, AbsoluteLayoutFlags.All);
-            AbsoluteLayout.SetLayoutBounds(existingContent, new Rect(0, 0, 1, 1));
-            absoluteLayout.Children.Add(existingContent);
+            Console.WriteLine("Overlay container not found. Ensure your ContentPage XAML defines an AbsoluteLayout with x:Name=\"OverlayContainer\".");
+            return;
         }
 
-        // Force the creation of the handler using the MauiContext.
+        // Ensure the MAUI component has a handler.
         if (Component.Handler == null)
         {
             var handler = mauiContext.Handlers.GetHandler(Component.GetType());
             if (handler is IViewHandler viewHandler)
             {
-                viewHandler.SetMauiContext(mauiContext); // Ensure MauiContext is set
+                viewHandler.SetMauiContext(mauiContext);
                 viewHandler.SetVirtualView(Component);
                 Component.Handler = viewHandler;
                 Console.WriteLine("Handler forced via MauiContext.");
@@ -104,31 +96,24 @@
             }
         }
 
-        // Wrap the component in a layout container.
+        // Wrap the MAUI component in a container (here a simple Grid).
         var wrappedComponent = WrapInLayout(Component);
-
-        // Position the overlay using proportional coordinates.
+        // Start with zero opacity for fade-in.
+        wrappedComponent.Opacity = 0;
         _overlayView = wrappedComponent;
+
+        // Set absolute positioning so that it appears at the desired location.
         AbsoluteLayout.SetLayoutFlags(_overlayView, AbsoluteLayoutFlags.PositionProportional);
         AbsoluteLayout.SetLayoutBounds(_overlayView, new Rect(0.5, 0.8, AbsoluteLayout.AutoSize, AbsoluteLayout.AutoSize));
-        absoluteLayout.Children.Add(_overlayView);
 
-        // Set the AbsoluteLayout as the page's content.
-        contentPage.Content = absoluteLayout;
+        // Add the wrapped component to the overlay container.
+        overlayContainer.Children.Add(_overlayView);
 
-        // Allow time for layout and handler attachment.
-        await Task.Delay(100);
+        // Brief delay for layout pass, then animate the fade in.
+        await Task.Delay(50);
+        await _overlayView.FadeTo(1, 250);
 
-        if (Component.Handler == null)
-        {
-            Console.WriteLine("Handler is still null after layout pass.");
-        }
-        else
-        {
-            Console.WriteLine("Handler created successfully.");
-        }
-
-        // Set up additional interop (e.g., observe element position).
+        // Set up additional interop (for example, observing element position).
         await MauiBlazorBridgeInterop.ObserveElementPosition(_elementReference, ElementId).NoSync();
     }
 
@@ -136,10 +121,8 @@
     {
         var height = await GetPageHeight();
 
-        // Compute a conversion factor (Maui page height / viewport height).
+        // Compute conversion factor (Maui page height / viewport height).
         var conversionFactor = height / e.ViewportHeight;
-
-        // Calculate desired overlay Y position in CSS pixels, then convert to Maui units.
         var dynamicOffsetCss = e.Height * 0.5;
         var overlayYCss = e.Top + e.Height + dynamicOffsetCss;
         var overlayYMaui = overlayYCss * conversionFactor;
@@ -159,7 +142,6 @@
     {
         var page = Application.Current?.Windows.FirstOrDefault()?.Page;
         var height = page?.Height;
-
         while (height is null or <= 0)
         {
             await Task.Delay(100);
@@ -169,19 +151,13 @@
         return height.Value;
     }
 
-    // Simple wrapper that places the MAUI component in a Grid.
+    // Wraps the provided MAUI component in a simple Grid container.
     private Layout WrapInLayout(View mauiComponent)
     {
         var grid = new Grid
         {
-            RowDefinitions =
-            {
-                new RowDefinition {Height = GridLength.Auto}
-            },
-            ColumnDefinitions =
-            {
-                new ColumnDefinition {Width = GridLength.Auto}
-            },
+            RowDefinitions = {new RowDefinition {Height = GridLength.Auto}},
+            ColumnDefinitions = {new ColumnDefinition {Width = GridLength.Auto}},
             HorizontalOptions = LayoutOptions.Start,
             VerticalOptions = LayoutOptions.Start,
             BackgroundColor = Colors.Transparent
@@ -190,7 +166,8 @@
         return grid;
     }
 
-    public async ValueTask RemoveElement()
+    // Removes the overlay element from the overlay container.
+    public async ValueTask RemoveElement(bool fade = false)
     {
         BlazorCallbackRegistry.Unregister(ElementId);
 
@@ -198,77 +175,32 @@
         {
             if (_overlayView != null)
             {
-                try
+                if (fade)
+                    await _overlayView.FadeTo(0, 250);
+
+                if (_overlayView.Parent is Layout parentLayout)
                 {
-                    // Ensure _overlayView is removed from its parent
-                    if (_overlayView.Parent is Layout parentLayout)
-                    {
-                        parentLayout.Children.Remove(_overlayView);
-                        Console.WriteLine("Successfully removed _overlayView from parent layout.");
-                    }
-
-                    // Get current window and check for AbsoluteLayout
-                    var window = Application.Current?.Windows.FirstOrDefault();
-                    if (window?.Page is ContentPage contentPage && contentPage.Content is AbsoluteLayout absoluteLayout)
-                    {
-                        // **Check if _overlayView was wrapped inside a Grid**
-                        var parentGrid = absoluteLayout.Children.FirstOrDefault(c => c is Grid grid && grid.Children.Contains(_overlayView)) as Grid;
-
-                        // Remove the wrapping Grid if it was added
-                        if (parentGrid != null)
-                        {
-                            absoluteLayout.Children.Remove(parentGrid);
-                            Console.WriteLine("Successfully removed wrapping Grid from AbsoluteLayout.");
-                        }
-                        else if (absoluteLayout.Children.Contains(_overlayView))
-                        {
-                            absoluteLayout.Children.Remove(_overlayView);
-                            Console.WriteLine("Successfully removed _overlayView from AbsoluteLayout.");
-                        }
-
-                        // Disconnect handler to fully release the view
-                        _overlayView.Handler?.DisconnectHandler();
-                        _overlayView.Handler = null;
-                        _overlayView = null;
-
-                        // Ensure no pending updates before modifying contentPage.Content
-                        await Task.Delay(50);
-
-                        // **Check if only the removed elements were targeted**
-                        Console.WriteLine($"AbsoluteLayout children count after removal: {absoluteLayout.Children.Count}");
-                        if (absoluteLayout.Children.Count == 0)
-                        {
-                            Console.WriteLine("AbsoluteLayout is empty; resetting contentPage.Content.");
-                            contentPage.Content = null;
-                        }
-                        else
-                        {
-                            Console.WriteLine("Keeping AbsoluteLayout as it still has children.");
-                        }
-                    }
+                    parentLayout.Children.Remove(_overlayView);
+                    Console.WriteLine("Overlay view removed from overlay container.");
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error removing _overlayView: {ex.Message}");
-                }
-            }
 
-            if (Component != null)
-            {
-                Component.DisconnectHandlers();
-                Component.Handler = null;
-                Component = null;
+                _overlayView.Handler?.DisconnectHandler();
+                _overlayView.Handler = null;
+                _overlayView = null;
             }
-
-            await Task.Delay(50);
         });
-    }
 
+        if (Component != null)
+        {
+            Component.DisconnectHandlers();
+            Component.Handler = null;
+            Component = null;
+        }
+    }
 
     public async ValueTask DisposeAsync()
     {
         GC.SuppressFinalize(this);
-
         if (_overlayView != null)
         {
             await RemoveElement().NoSync();
