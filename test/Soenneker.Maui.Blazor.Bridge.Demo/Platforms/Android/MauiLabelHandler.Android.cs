@@ -1,4 +1,5 @@
-﻿using Android.Widget;
+﻿using Android.Content;
+using Android.Widget;
 using Microsoft.Maui.Handlers;
 using Color = Android.Graphics.Color;
 
@@ -17,7 +18,7 @@ public partial class MauiLabelHandler : ViewHandler<MauiLabel, TextView>
 
     protected override TextView CreatePlatformView()
     {
-        var context = MauiContext?.Context ?? throw new InvalidOperationException("MauiContext is null");
+        Context context = MauiContext?.Context ?? throw new InvalidOperationException("MauiContext is null");
         var textView = new TextView(context);
         textView.SetTextColor(Color.Black);
         textView.SetBackgroundColor(Color.LightGray);

@@ -8,6 +8,7 @@
 @using Soenneker.Extensions.ValueTask
 @using Soenneker.Maui.Blazor.Bridge.Abstract
 @using Soenneker.Maui.Blazor.Bridge.Dtos
+@using System.Threading
 
 @typeparam TComponent where TComponent : View, new()
 
@@ -47,10 +48,10 @@
         await MainThread.InvokeOnMainThreadAsync(async () => { await RenderMauiElement().NoSync(); }).NoSync();
     }
 
-    private async ValueTask RenderMauiElement()
+    private async ValueTask RenderMauiElement(CancellationToken cancellationToken = default)
     {
         // Get the current window and ensure its Page is a ContentPage.
-        var window = Application.Current?.Windows.FirstOrDefault();
+        Window? window = Application.Current?.Windows.FirstOrDefault();
         if (window == null)
         {
             Console.WriteLine("No window available.");
@@ -66,10 +67,10 @@
         // Wait until the ContentPage's Handler and MauiContext are available.
         while (contentPage.Handler?.MauiContext == null)
         {
-            await Task.Delay(50);
+            await Task.Delay(50, cancellationToken);
         }
 
-        var mauiContext = contentPage.Handler.MauiContext;
+        IMauiContext? mauiContext = contentPage.Handler.MauiContext;
 
         // Retrieve the pre-defined overlay container by name.
         var overlayContainer = contentPage.FindByName<AbsoluteLayout>("OverlayContainer");
@@ -82,7 +83,7 @@
         // Ensure the MAUI component has a handler.
         if (Component.Handler == null)
         {
-            var handler = mauiContext.Handlers.GetHandler(Component.GetType());
+            IElementHandler? handler = mauiContext.Handlers.GetHandler(Component.GetType());
             if (handler is IViewHandler viewHandler)
             {
                 viewHandler.SetMauiContext(mauiContext);
@@ -97,7 +98,7 @@
         }
 
         // Wrap the MAUI component in a container (here a simple Grid).
-        var wrappedComponent = WrapInLayout(Component);
+        Layout wrappedComponent = WrapInLayout(Component);
         // Start with zero opacity for fade-in.
         wrappedComponent.Opacity = 0;
         _overlayView = wrappedComponent;
@@ -110,23 +111,23 @@
         overlayContainer.Children.Add(_overlayView);
 
         // Brief delay for layout pass, then animate the fade in.
-        await Task.Delay(50);
+        await Task.Delay(50, cancellationToken);
         await _overlayView.FadeTo(1, 250);
 
         // Set up additional interop (for example, observing element position).
-        await MauiBlazorBridgeInterop.ObserveElementPosition(_elementReference, ElementId).NoSync();
+        await MauiBlazorBridgeInterop.ObserveElementPosition(_elementReference, ElementId, cancellationToken).NoSync();
     }
 
     private async Task OnElementPositionReported(object? sender, ElementPositionDto e)
     {
-        var height = await GetPageHeight();
+        double height = await GetPageHeight();
 
         // Compute conversion factor (Maui page height / viewport height).
-        var conversionFactor = height / e.ViewportHeight;
-        var dynamicOffsetCss = e.Height * 0.5;
-        var overlayYCss = e.Top + e.Height + dynamicOffsetCss;
-        var overlayYMaui = overlayYCss * conversionFactor;
-        var yProportion = overlayYMaui / height;
+        double conversionFactor = height / e.ViewportHeight;
+        double dynamicOffsetCss = e.Height * 0.5;
+        double overlayYCss = e.Top + e.Height + dynamicOffsetCss;
+        double overlayYMaui = overlayYCss * conversionFactor;
+        double yProportion = overlayYMaui / height;
 
         await MainThread.InvokeOnMainThreadAsync(() =>
         {
@@ -138,10 +139,10 @@
         });
     }
 
-    private async ValueTask<double> GetPageHeight()
+    private static async ValueTask<double> GetPageHeight()
     {
-        var page = Application.Current?.Windows.FirstOrDefault()?.Page;
-        var height = page?.Height;
+        Page? page = Application.Current?.Windows.FirstOrDefault()?.Page;
+        double? height = page?.Height;
         while (height is null or <= 0)
         {
             await Task.Delay(100);
@@ -152,7 +153,7 @@
     }
 
     // Wraps the provided MAUI component in a simple Grid container.
-    private Layout WrapInLayout(View mauiComponent)
+    private static Layout WrapInLayout(View mauiComponent)
     {
         var grid = new Grid
         {
@@ -201,6 +202,7 @@
     public async ValueTask DisposeAsync()
     {
         GC.SuppressFinalize(this);
+
         if (_overlayView != null)
         {
             await RemoveElement().NoSync();

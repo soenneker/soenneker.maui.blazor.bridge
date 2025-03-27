@@ -1,4 +1,6 @@
-﻿@using Microsoft.Maui
+﻿@using System.Reflection
+@using System.Threading
+@using Microsoft.Maui
 @using Microsoft.Maui.ApplicationModel
 @using Microsoft.Maui.Controls
 @using Microsoft.Maui.Graphics
@@ -55,10 +57,10 @@
         await MainThread.InvokeOnMainThreadAsync(async () => { await RenderMauiElement().NoSync(); }).NoSync();
     }
 
-    private async ValueTask RenderMauiElement()
+    private async ValueTask RenderMauiElement(CancellationToken cancellationToken = default)
     {
         // Get the current window and ensure its Page is a ContentPage.
-        var window = Application.Current?.Windows.FirstOrDefault();
+        Window? window = Application.Current?.Windows.FirstOrDefault();
         if (window == null)
         {
             Console.WriteLine("No window available.");
@@ -74,10 +76,10 @@
         // Wait until the ContentPage's Handler and MauiContext are available.
         while (contentPage.Handler?.MauiContext == null)
         {
-            await Task.Delay(50);
+            await Task.Delay(50, cancellationToken);
         }
 
-        var mauiContext = contentPage.Handler.MauiContext;
+        IMauiContext? mauiContext = contentPage.Handler.MauiContext;
 
         // Retrieve the pre-defined overlay container from the ContentPage.
         var overlayContainer = contentPage.FindByName<AbsoluteLayout>("OverlayContainer");
@@ -103,7 +105,7 @@
         // Force the creation of the handler using the MauiContext.
         if (mauiComponent.Handler == null)
         {
-            var handler = mauiContext.Handlers.GetHandler(mauiComponent.GetType());
+            IElementHandler? handler = mauiContext.Handlers.GetHandler(mauiComponent.GetType());
             if (handler is IViewHandler viewHandler)
             {
                 viewHandler.SetMauiContext(mauiContext);
@@ -118,7 +120,7 @@
         }
 
         // Wrap the component in a container (Grid, Stack, etc.).
-        var wrappedComponent = WrapInLayout(mauiComponent);
+        Layout wrappedComponent = WrapInLayout(mauiComponent);
         // Start with zero opacity for fade-in.
         wrappedComponent.Opacity = 0;
         _overlayView = wrappedComponent;
@@ -134,21 +136,21 @@
         overlayContainer.Children.Add(_overlayView);
 
         // Allow a brief layout pass, then animate the fade in.
-        await Task.Delay(50);
+        await Task.Delay(50, cancellationToken);
         await _overlayView.FadeTo(1, 250);
 
         // Set up additional interop (e.g., observing element position).
-        await MauiBlazorBridgeInterop.ObserveElementPosition(_elementReference, ElementId).NoSync();
+        await MauiBlazorBridgeInterop.ObserveElementPosition(_elementReference, ElementId, cancellationToken).NoSync();
     }
 
     private async Task OnElementPositionReported(object? sender, ElementPositionDto e)
     {
-        var height = await GetPageHeight();
-        var conversionFactor = height / e.ViewportHeight;
-        var dynamicOffsetCss = e.Height * 0.5;
-        var overlayYCss = e.Top + e.Height + dynamicOffsetCss;
-        var overlayYMaui = overlayYCss * conversionFactor;
-        var yProportion = overlayYMaui / height;
+        double height = await GetPageHeight();
+        double conversionFactor = height / e.ViewportHeight;
+        double dynamicOffsetCss = e.Height * 0.5;
+        double overlayYCss = e.Top + e.Height + dynamicOffsetCss;
+        double overlayYMaui = overlayYCss * conversionFactor;
+        double yProportion = overlayYMaui / height;
         await MainThread.InvokeOnMainThreadAsync(() =>
         {
             if (_overlayView != null)
@@ -161,8 +163,8 @@
 
     private async ValueTask<double> GetPageHeight()
     {
-        var page = Application.Current?.Windows.FirstOrDefault()?.Page;
-        var height = page?.Height;
+        Page? page = Application.Current?.Windows.FirstOrDefault()?.Page;
+        double? height = page?.Height;
         while (height is null or <= 0)
         {
             await Task.Delay(100);
@@ -214,10 +216,10 @@
     {
         foreach (KeyValuePair<string, object?> prop in Properties)
         {
-            var propertyInfo = mauiComponent.GetType().GetProperty(prop.Key);
+            PropertyInfo? propertyInfo = mauiComponent.GetType().GetProperty(prop.Key);
             if (propertyInfo != null && prop.Value != null)
             {
-                var convertedValue = ConvertValue(propertyInfo.PropertyType, prop.Value);
+                object? convertedValue = ConvertValue(propertyInfo.PropertyType, prop.Value);
                 propertyInfo.SetValue(mauiComponent, convertedValue);
             }
         }
@@ -225,16 +227,16 @@
 
     private void SetComponentSpecificProperties(View mauiComponent)
     {
-        var textProperty = mauiComponent.GetType().GetProperty("Text");
+        PropertyInfo? textProperty = mauiComponent.GetType().GetProperty("Text");
         if (textProperty != null && !string.IsNullOrEmpty(Text))
             textProperty.SetValue(mauiComponent, Text);
-        var textColorProperty = mauiComponent.GetType().GetProperty("TextColor");
+        PropertyInfo? textColorProperty = mauiComponent.GetType().GetProperty("TextColor");
         if (textColorProperty != null && !string.IsNullOrEmpty(TextColor))
             textColorProperty.SetValue(mauiComponent, Color.FromArgb(TextColor));
-        var fontSizeProperty = mauiComponent.GetType().GetProperty("FontSize");
+        PropertyInfo? fontSizeProperty = mauiComponent.GetType().GetProperty("FontSize");
         if (fontSizeProperty != null && FontSize.HasValue)
             fontSizeProperty.SetValue(mauiComponent, FontSize.Value);
-        var paddingProperty = mauiComponent.GetType().GetProperty("Padding");
+        PropertyInfo? paddingProperty = mauiComponent.GetType().GetProperty("Padding");
         if (paddingProperty != null && Padding.HasValue)
             paddingProperty.SetValue(mauiComponent, new Thickness(Padding.Value));
     }
@@ -253,7 +255,7 @@
             return int.Parse(intString);
         if (targetType == typeof(Thickness) && value is string thicknessString)
         {
-            var values = thicknessString.Split(',').Select(double.Parse).ToArray();
+            double[] values = thicknessString.Split(',').Select(double.Parse).ToArray();
             return values.Length switch
             {
                 1 => new Thickness(values[0]),
