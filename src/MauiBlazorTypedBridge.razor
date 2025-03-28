@@ -10,9 +10,12 @@
 @using Soenneker.Maui.Blazor.Bridge.Dtos
 @using System.Threading
 
+@inject IBlazorCallbackRegistry BlazorCallbackRegistry;
+@inject IMauiBlazorBridgeInterop MauiBlazorBridgeInterop;
+
 @typeparam TComponent where TComponent : View, new()
 
-<div id="@ElementId" @ref="_elementReference"></div>
+<div id="@ElementId" @ref="_elementReference" ></div>
 
 @code {
 
@@ -20,11 +23,9 @@
     private ElementReference _elementReference;
     public readonly string ElementId = Guid.NewGuid().ToString();
 
-    [EditorRequired] [Parameter] public TComponent? Component { get; set; }
-
-    [Inject] public IBlazorCallbackRegistry BlazorCallbackRegistry { get; set; } = null!;
-
-    [Inject] public IMauiBlazorBridgeInterop MauiBlazorBridgeInterop { get; set; } = null!;
+    [EditorRequired]
+    [Parameter]
+    public TComponent? Component { get; set; }
 
     // The wrapped MAUI element that will be added to the overlay container.
     private View? _overlayView;

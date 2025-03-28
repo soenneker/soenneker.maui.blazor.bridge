@@ -35,21 +35,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Compile Remove="EventArgs\**" />
-      <Compile Remove="NewFolder\**" />
-      <Content Remove="EventArgs\**" />
-      <Content Remove="NewFolder\**" />
-      <EmbeddedResource Remove="EventArgs\**" />
-      <EmbeddedResource Remove="NewFolder\**" />
-      <MauiCss Remove="EventArgs\**" />
-      <MauiCss Remove="NewFolder\**" />
-      <MauiXaml Remove="EventArgs\**" />
-      <MauiXaml Remove="NewFolder\**" />
-      <None Remove="EventArgs\**" />
-      <None Remove="NewFolder\**" />
-    </ItemGroup>
-
-    <ItemGroup>
         <None Include="..\CONTRIBUTING.md" Link="CONTRIBUTING.md" />
         <None Include="..\README.md" Pack="true" PackagePath="\" />
         <None Include="..\LICENSE" Pack="true" PackagePath="\" />
