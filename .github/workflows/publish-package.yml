@@ -27,11 +27,7 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
-
-      - name: Enable MAUI workload resolver
-        shell: pwsh
-        run: echo "DOTNET_WORKLOAD_RESOLVER_SUGGESTION_SILENT=1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8
-
+          
       - name: Install dependencies with retry
         shell: pwsh
         run: |
