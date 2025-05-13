@@ -44,6 +44,6 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.AspNetCore.Components" Version="9.0.5" />
         <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.61" />
-        <PackageReference Include="Soenneker.Blazor.CallbackRegistry" Version="3.0.257" />
+        <PackageReference Include="Soenneker.Blazor.CallbackRegistry" Version="3.0.259" />
     </ItemGroup>
 </Project>
