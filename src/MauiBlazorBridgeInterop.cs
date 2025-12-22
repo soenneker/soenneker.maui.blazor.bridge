@@ -3,17 +3,17 @@ using Microsoft.JSInterop;
 using Soenneker.Blazor.Utils.ResourceLoader.Abstract;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Maui.Blazor.Bridge.Abstract;
-using Soenneker.Utils.AsyncSingleton;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Soenneker.Asyncs.Initializers;
 
 namespace Soenneker.Maui.Blazor.Bridge;
 
 ///<inheritdoc cref="IMauiBlazorBridgeInterop"/>
 public class MauiBlazorBridgeInterop : IMauiBlazorBridgeInterop
 {
-    private readonly AsyncSingleton _moduleInitializer;
+    private readonly AsyncInitializer _moduleInitializer;
 
     private const string _module = "Soenneker.Maui.Blazor.Bridge/js/mauiblazorbridgeinterop.js";
     private const string _moduleNamespace = "MauiBlazorBridgeInterop";
@@ -26,11 +26,9 @@ public class MauiBlazorBridgeInterop : IMauiBlazorBridgeInterop
         _resourceLoader = resourceLoader;
         _jSRuntime = jSRuntime;
 
-        _moduleInitializer = new AsyncSingleton(async (token, _) =>
+        _moduleInitializer = new AsyncInitializer(async token =>
         {
             await resourceLoader.ImportModuleAndWaitUntilAvailable(_module, _moduleNamespace, 100, token).NoSync();
-
-            return new object();
         });
     }
 
