@@ -14,7 +14,7 @@
         <AssemblyName>Soenneker.Maui.Blazor.Bridge</AssemblyName>
         <PackageId>Soenneker.Maui.Blazor.Bridge</PackageId>
         <PackageTags>maui blazor bridge callback js jsruntime interop razor mauiblazorbridge mauilibrary csharp dotnet c# .net</PackageTags>
-        <Copyright>Copyright © 2025 Jake Soenneker</Copyright>
+        <Copyright>Copyright © 2025-2026 Jake Soenneker</Copyright>
         <Authors>Jake Soenneker</Authors>
         <Company>https://soenneker.com</Company>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
