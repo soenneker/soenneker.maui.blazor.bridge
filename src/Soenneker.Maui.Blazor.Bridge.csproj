@@ -1,5 +1,6 @@
-﻿<?xml version="1.0" encoding="utf-8"?><Project Sdk="Microsoft.NET.Sdk.Razor">
+﻿<?xml version="1.0" encoding="utf-8"?>
 
+<Project Sdk="Microsoft.NET.Sdk.Razor">
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
@@ -32,7 +33,8 @@
         <LangVersion>latest</LangVersion>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageIcon>icon.png</PackageIcon>
-    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild></PropertyGroup>
+        <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    </PropertyGroup>
 
     <ItemGroup>
         <None Include="..\README.md" Pack="true" PackagePath="\" />
@@ -43,6 +45,7 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.AspNetCore.Components" Version="10.0.1" />
         <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
-        <PackageReference Include="Soenneker.Blazor.CallbackRegistry" Version="4.0.410" />
+        <PackageReference Include="Soenneker.Blazor.CallbackRegistry" Version="4.0.411" />
+        <PackageReference Include="Soenneker.Extensions.Double" Version="4.0.449" />
     </ItemGroup>
 </Project>

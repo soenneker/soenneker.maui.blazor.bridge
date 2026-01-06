@@ -1,177 +1,221 @@
-﻿@using System.Reflection
-@using System.Threading
+﻿@using System.Threading
 @using Microsoft.Maui
 @using Microsoft.Maui.ApplicationModel
 @using Microsoft.Maui.Controls
 @using Microsoft.Maui.Graphics
 @using Microsoft.Maui.Layouts
 @using Soenneker.Blazor.CallbackRegistry.Abstract
-@using Soenneker.Extensions.Task
-@using Soenneker.Extensions.ValueTask
+@using Soenneker.Extensions.Double
 @using Soenneker.Maui.Blazor.Bridge.Abstract
 @using Soenneker.Maui.Blazor.Bridge.Dtos
+@using Soenneker.Maui.Blazor.Bridge.Utils
 
 @inject IBlazorCallbackRegistry BlazorCallbackRegistry
 @inject IMauiBlazorBridgeInterop MauiBlazorBridgeInterop
 @implements IAsyncDisposable
 
-<div id="@ElementId" @ref="_elementReference"></div>
+<div id="@ElementId" @ref="_elementReference" ></div>
 
 @code {
     private ElementReference _elementReference;
-    public readonly string ElementId = Guid.NewGuid().ToString();
 
-    [EditorRequired] [Parameter] public Type ComponentType { get; set; } = null!;
+    public readonly string ElementId = Guid.NewGuid()
+                                           .ToString("N");
 
-    [Parameter] public string? Text { get; set; }
-    [Parameter] public string? TextColor { get; set; }
-    [Parameter] public string? BackgroundColor { get; set; }
-    [Parameter] public int? FontSize { get; set; }
-    [Parameter] public int? Padding { get; set; }
-    [Parameter] public int? Margin { get; set; }
-    [Parameter] public int? Width { get; set; }
-    [Parameter] public int? Height { get; set; }
-    [Parameter] public double? Opacity { get; set; }
-    [Parameter] public double? Rotation { get; set; }
-    [Parameter] public double? Scale { get; set; }
-    [Parameter] public LayoutOptions? HorizontalOptions { get; set; }
-    [Parameter] public LayoutOptions? VerticalOptions { get; set; }
-    [Parameter] public double? X { get; set; } // Absolute positioning X (proportional)
-    [Parameter] public double? Y { get; set; } // Absolute positioning Y (proportional)
-    [Parameter] public bool UseVerticalStack { get; set; } = false;
-    [Parameter] public bool UseHorizontalStack { get; set; } = false;
-    [Parameter] public Dictionary<string, object?> Properties { get; set; } = new();
+    [EditorRequired]
+    [Parameter]
+    public Type ComponentType { get; set; } = null!;
+
+    [Parameter]
+    public string? Text { get; set; }
+
+    [Parameter]
+    public string? TextColor { get; set; }
+
+    [Parameter]
+    public string? BackgroundColor { get; set; }
+
+    [Parameter]
+    public int? FontSize { get; set; }
+
+    [Parameter]
+    public int? Padding { get; set; }
+
+    [Parameter]
+    public int? Margin { get; set; }
+
+    [Parameter]
+    public int? Width { get; set; }
+
+    [Parameter]
+    public int? Height { get; set; }
+
+    [Parameter]
+    public double? Opacity { get; set; }
+
+    [Parameter]
+    public double? Rotation { get; set; }
+
+    [Parameter]
+    public double? Scale { get; set; }
+
+    [Parameter]
+    public LayoutOptions? HorizontalOptions { get; set; }
+
+    [Parameter]
+    public LayoutOptions? VerticalOptions { get; set; }
+
+    [Parameter]
+    public double? X { get; set; }
+
+    [Parameter]
+    public double? Y { get; set; }
+
+    [Parameter]
+    public bool UseVerticalStack { get; set; }
+
+    [Parameter]
+    public bool UseHorizontalStack { get; set; }
+
+    // Don't allocate a Dictionary by default; let callers pass one if needed.
+    [Parameter]
+    public IReadOnlyDictionary<string, object?>? Properties { get; set; }
 
     private View? _overlayView;
     private bool _initialized;
+
+    private AbsoluteLayout? _overlayContainer;
+    private ContentPage? _contentPage;
+    private IMauiContext? _mauiContext;
+
+    private CancellationTokenSource? _cts;
+
+    private double _pageHeight;
+    private double _lastYProportion = double.NaN;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (_initialized)
             return;
+
         _initialized = true;
+        _cts = new CancellationTokenSource();
 
-        await MauiBlazorBridgeInterop.Initialize().NoSync();
-        await BlazorCallbackRegistry.Register<ElementPositionDto>(ElementId, async result => { await OnElementPositionReported(null, result).NoSync(); }).NoSync();
+        await MauiBlazorBridgeInterop.Initialize();
 
-        await MainThread.InvokeOnMainThreadAsync(async () => { await RenderMauiElement().NoSync(); }).NoSync();
+        // Method group avoids extra async-lambda allocation
+        await BlazorCallbackRegistry.Register<ElementPositionDto>(ElementId, OnElementPositionReported);
+
+        await RenderMauiElement(_cts.Token);
     }
 
-    private async ValueTask RenderMauiElement(CancellationToken cancellationToken = default)
+    private async ValueTask RenderMauiElement(CancellationToken cancellationToken)
     {
-        // Get the current window and ensure its Page is a ContentPage.
         Window? window = Application.Current?.Windows.FirstOrDefault();
-        if (window == null)
+        if (window?.Page is not ContentPage contentPage)
         {
-            Console.WriteLine("No window available.");
+            Console.WriteLine("No ContentPage available.");
             return;
         }
 
-        if (!(window.Page is ContentPage contentPage))
+        _contentPage = contentPage;
+
+        _overlayContainer ??= contentPage.FindByName<AbsoluteLayout>("OverlayContainer");
+        if (_overlayContainer is null)
         {
-            Console.WriteLine("Page is not a ContentPage.");
+            Console.WriteLine("Overlay container not found. Ensure ContentPage XAML defines AbsoluteLayout x:Name=\"OverlayContainer\".");
             return;
         }
 
-        // Wait until the ContentPage's Handler and MauiContext are available.
-        while (contentPage.Handler?.MauiContext == null)
-        {
+        while (!cancellationToken.IsCancellationRequested && contentPage.Handler?.MauiContext is null)
             await Task.Delay(50, cancellationToken);
-        }
 
-        IMauiContext? mauiContext = contentPage.Handler.MauiContext;
-
-        // Retrieve the pre-defined overlay container from the ContentPage.
-        var overlayContainer = contentPage.FindByName<AbsoluteLayout>("OverlayContainer");
-        if (overlayContainer == null)
-        {
-            Console.WriteLine("Overlay container not found. Ensure your ContentPage XAML defines an AbsoluteLayout with x:Name=\"OverlayContainer\".");
+        _mauiContext = contentPage.Handler?.MauiContext;
+        if (_mauiContext is null)
             return;
-        }
 
-        // Create your MAUI component (of type ComponentType) on the Main thread.
-        View? mauiComponent = null;
-        await MainThread.InvokeOnMainThreadAsync(() => { mauiComponent = CreateMauiComponent(); });
-        if (mauiComponent == null)
+        HookPageSize(contentPage);
+
+        View? mauiComponent = await MainThread.InvokeOnMainThreadAsync(CreateMauiComponent);
+        if (mauiComponent is null)
         {
             Console.WriteLine($"Failed to create component: {ComponentType}");
             return;
         }
 
-        // Apply common and extra properties.
-        ApplyCommonProperties(mauiComponent);
-        ApplyExtraProperties(mauiComponent);
+        ApplyCommonPropertiesFast(mauiComponent);
+        ApplyExtraPropertiesCached(mauiComponent);
 
-        // Force the creation of the handler using the MauiContext.
-        if (mauiComponent.Handler == null)
-        {
-            IElementHandler? handler = mauiContext.Handlers.GetHandler(mauiComponent.GetType());
-            if (handler is IViewHandler viewHandler)
-            {
-                viewHandler.SetMauiContext(mauiContext);
-                viewHandler.SetVirtualView(mauiComponent);
-                mauiComponent.Handler = viewHandler;
-                Console.WriteLine("Handler forced via MauiContext.");
-            }
-            else
-            {
-                Console.WriteLine("Failed to get an IViewHandler from MauiContext.");
-            }
-        }
+        MauiHandlerUtil.ForceHandlerIfNeeded(mauiComponent, _mauiContext);
 
-        // Wrap the component in a container (Grid, Stack, etc.).
         Layout wrappedComponent = WrapInLayout(mauiComponent);
-        // Start with zero opacity for fade-in.
         wrappedComponent.Opacity = 0;
         _overlayView = wrappedComponent;
 
-        // Set absolute positioning for the overlay.
-        AbsoluteLayout.SetLayoutFlags(_overlayView, AbsoluteLayoutFlags.PositionProportional);
-        // Use provided X and Y or default to 0.5 and 0.8 (proportional coordinates).
+        AbsoluteLayout.SetLayoutFlags(wrappedComponent, AbsoluteLayoutFlags.PositionProportional);
+
         double xProportion = X ?? 0.5;
         double yProportion = Y ?? 0.8;
-        AbsoluteLayout.SetLayoutBounds(_overlayView, new Rect(xProportion, yProportion, AbsoluteLayout.AutoSize, AbsoluteLayout.AutoSize));
 
-        // Add the overlay view to the pre-defined overlay container.
-        overlayContainer.Children.Add(_overlayView);
+        AbsoluteLayout.SetLayoutBounds(wrappedComponent, new Rect(xProportion, yProportion, AbsoluteLayout.AutoSize, AbsoluteLayout.AutoSize));
 
-        // Allow a brief layout pass, then animate the fade in.
-        await Task.Delay(50, cancellationToken);
-        await _overlayView.FadeTo(1, 250);
-
-        // Set up additional interop (e.g., observing element position).
-        await MauiBlazorBridgeInterop.ObserveElementPosition(_elementReference, ElementId, cancellationToken).NoSync();
-    }
-
-    private async Task OnElementPositionReported(object? sender, ElementPositionDto e)
-    {
-        double height = await GetPageHeight();
-        double conversionFactor = height / e.ViewportHeight;
-        double dynamicOffsetCss = e.Height * 0.5;
-        double overlayYCss = e.Top + e.Height + dynamicOffsetCss;
-        double overlayYMaui = overlayYCss * conversionFactor;
-        double yProportion = overlayYMaui / height;
         await MainThread.InvokeOnMainThreadAsync(() =>
         {
-            if (_overlayView != null)
-            {
-                AbsoluteLayout.SetLayoutFlags(_overlayView, AbsoluteLayoutFlags.PositionProportional);
-                AbsoluteLayout.SetLayoutBounds(_overlayView, new Rect(0.5, yProportion, AbsoluteLayout.AutoSize, AbsoluteLayout.AutoSize));
-            }
+            _overlayContainer!.Children.Add(wrappedComponent);
         });
+
+        await Task.Delay(50, cancellationToken);
+        await wrappedComponent.FadeTo(1, 250);
+
+        await MauiBlazorBridgeInterop.ObserveElementPosition(_elementReference, ElementId, cancellationToken);
     }
 
-    private async ValueTask<double> GetPageHeight()
+    private void HookPageSize(ContentPage page)
     {
-        Page? page = Application.Current?.Windows.FirstOrDefault()?.Page;
-        double? height = page?.Height;
-        while (height is null or <= 0)
-        {
-            await Task.Delay(100);
-            height = page?.Height;
-        }
+        if (page.Height > 0)
+            _pageHeight = page.Height;
 
-        return height.Value;
+        page.SizeChanged -= OnPageSizeChanged;
+        page.SizeChanged += OnPageSizeChanged;
+    }
+
+    private void OnPageSizeChanged(object? sender, EventArgs e)
+    {
+        if (sender is Page p && p.Height > 0)
+            _pageHeight = p.Height;
+    }
+
+    private Task OnElementPositionReported(ElementPositionDto e)
+    {
+        // If you need async, keep it async Task.
+        return OnElementPositionReportedCore(e);
+
+        async Task OnElementPositionReportedCore(ElementPositionDto dto)
+        {
+            double height = _pageHeight;
+            if (height <= 0 || dto.ViewportHeight <= 0)
+                return;
+
+            double conversionFactor = height / dto.ViewportHeight;
+
+            double overlayYCss = dto.Top + dto.Height + (dto.Height * 0.5);
+            double overlayYMaui = overlayYCss * conversionFactor;
+            double yProportion = overlayYMaui / height;
+
+            if (_lastYProportion.NearlyEqual(yProportion, 0.0005))
+                return;
+
+            _lastYProportion = yProportion;
+
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                if (_overlayView is null)
+                    return;
+
+                AbsoluteLayout.SetLayoutFlags(_overlayView, AbsoluteLayoutFlags.PositionProportional);
+                AbsoluteLayout.SetLayoutBounds(_overlayView, new Rect(0.5, yProportion, AbsoluteLayout.AutoSize, AbsoluteLayout.AutoSize));
+            });
+        }
     }
 
     private View? CreateMauiComponent()
@@ -184,7 +228,7 @@
 
         try
         {
-            return (View) Activator.CreateInstance(ComponentType)!;
+            return (View)Activator.CreateInstance(ComponentType)!;
         }
         catch (Exception ex)
         {
@@ -193,159 +237,178 @@
         }
     }
 
-    private void ApplyCommonProperties(View mauiComponent)
+    private void ApplyCommonPropertiesFast(View v)
     {
         if (!string.IsNullOrEmpty(BackgroundColor))
-            mauiComponent.BackgroundColor = Color.FromArgb(BackgroundColor);
-        if (Width.HasValue) mauiComponent.WidthRequest = Width.Value;
-        if (Height.HasValue) mauiComponent.HeightRequest = Height.Value;
-        if (Margin.HasValue) mauiComponent.Margin = new Thickness(Margin.Value);
-        if (Opacity.HasValue) mauiComponent.Opacity = Opacity.Value;
-        if (Rotation.HasValue) mauiComponent.Rotation = Rotation.Value;
-        if (Scale.HasValue) mauiComponent.Scale = Scale.Value;
-        if (HorizontalOptions.HasValue)
-            mauiComponent.HorizontalOptions = HorizontalOptions.Value;
-        if (VerticalOptions.HasValue)
-            mauiComponent.VerticalOptions = VerticalOptions.Value;
-        if (X.HasValue) mauiComponent.TranslationX = X.Value;
-        if (Y.HasValue) mauiComponent.TranslationY = Y.Value;
-        SetComponentSpecificProperties(mauiComponent);
-    }
+            v.BackgroundColor = Color.FromArgb(BackgroundColor);
 
-    private void ApplyExtraProperties(View mauiComponent)
-    {
-        foreach (KeyValuePair<string, object?> prop in Properties)
+        if (Width.HasValue)
+            v.WidthRequest = Width.Value;
+        if (Height.HasValue)
+            v.HeightRequest = Height.Value;
+        if (Margin.HasValue)
+            v.Margin = new Thickness(Margin.Value);
+        if (Opacity.HasValue)
+            v.Opacity = Opacity.Value;
+        if (Rotation.HasValue)
+            v.Rotation = Rotation.Value;
+        if (Scale.HasValue)
+            v.Scale = Scale.Value;
+
+        if (HorizontalOptions.HasValue)
+            v.HorizontalOptions = HorizontalOptions.Value;
+        if (VerticalOptions.HasValue)
+            v.VerticalOptions = VerticalOptions.Value;
+
+        if (X.HasValue)
+            v.TranslationX = X.Value;
+        if (Y.HasValue)
+            v.TranslationY = Y.Value;
+
+        // Fast path for common controls; fallback uses cached setters
+        if (!string.IsNullOrEmpty(Text) || !string.IsNullOrEmpty(TextColor) || FontSize.HasValue || Padding.HasValue)
         {
-            PropertyInfo? propertyInfo = mauiComponent.GetType().GetProperty(prop.Key);
-            if (propertyInfo != null && prop.Value != null)
+            switch (v)
             {
-                object? convertedValue = ConvertValue(propertyInfo.PropertyType, prop.Value);
-                propertyInfo.SetValue(mauiComponent, convertedValue);
+                case Label label:
+                    if (!string.IsNullOrEmpty(Text))
+                        label.Text = Text;
+                    if (!string.IsNullOrEmpty(TextColor))
+                        label.TextColor = Color.FromArgb(TextColor);
+                    if (FontSize.HasValue)
+                        label.FontSize = FontSize.Value;
+                    if (Padding.HasValue)
+                        label.Padding = new Thickness(Padding.Value);
+                    break;
+
+                case Button button:
+                    if (!string.IsNullOrEmpty(Text))
+                        button.Text = Text;
+                    if (!string.IsNullOrEmpty(TextColor))
+                        button.TextColor = Color.FromArgb(TextColor);
+                    if (FontSize.HasValue)
+                        button.FontSize = FontSize.Value;
+                    if (Padding.HasValue)
+                        button.Padding = new Thickness(Padding.Value);
+                    break;
+
+                case Entry entry:
+                    if (!string.IsNullOrEmpty(Text))
+                        entry.Text = Text;
+                    if (!string.IsNullOrEmpty(TextColor))
+                        entry.TextColor = Color.FromArgb(TextColor);
+                    if (FontSize.HasValue)
+                        entry.FontSize = FontSize.Value;
+                    break;
+
+                default:
+                    if (!string.IsNullOrEmpty(Text))
+                        CachedPropertySetter.TrySet(v, "Text", Text);
+
+                    if (!string.IsNullOrEmpty(TextColor))
+                        CachedPropertySetter.TrySet(v, "TextColor", TextColor); // string -> Color handled
+
+                    if (FontSize.HasValue)
+                        CachedPropertySetter.TrySet(v, "FontSize", FontSize.Value);
+
+                    if (Padding.HasValue)
+                        CachedPropertySetter.TrySet(v, "Padding", Padding.Value);
+                    break;
             }
         }
     }
 
-    private void SetComponentSpecificProperties(View mauiComponent)
+    private void ApplyExtraPropertiesCached(View v)
     {
-        PropertyInfo? textProperty = mauiComponent.GetType().GetProperty("Text");
-        if (textProperty != null && !string.IsNullOrEmpty(Text))
-            textProperty.SetValue(mauiComponent, Text);
-        PropertyInfo? textColorProperty = mauiComponent.GetType().GetProperty("TextColor");
-        if (textColorProperty != null && !string.IsNullOrEmpty(TextColor))
-            textColorProperty.SetValue(mauiComponent, Color.FromArgb(TextColor));
-        PropertyInfo? fontSizeProperty = mauiComponent.GetType().GetProperty("FontSize");
-        if (fontSizeProperty != null && FontSize.HasValue)
-            fontSizeProperty.SetValue(mauiComponent, FontSize.Value);
-        PropertyInfo? paddingProperty = mauiComponent.GetType().GetProperty("Padding");
-        if (paddingProperty != null && Padding.HasValue)
-            paddingProperty.SetValue(mauiComponent, new Thickness(Padding.Value));
-    }
+        IReadOnlyDictionary<string, object?>? props = Properties;
+        if (props is null || props.Count == 0)
+            return;
 
-    private object? ConvertValue(Type targetType, object value)
-    {
-        if (targetType == typeof(Color) && value is string colorString)
-            return Color.FromArgb(colorString);
-        if (targetType == typeof(LayoutOptions) && value is string layoutString)
-            return GetLayoutOptions(layoutString);
-        if (targetType == typeof(bool) && value is string boolString)
-            return bool.Parse(boolString);
-        if (targetType == typeof(double) && value is string doubleString)
-            return double.Parse(doubleString);
-        if (targetType == typeof(int) && value is string intString)
-            return int.Parse(intString);
-        if (targetType == typeof(Thickness) && value is string thicknessString)
+        foreach (KeyValuePair<string, object?> kvp in props)
         {
-            double[] values = thicknessString.Split(',').Select(double.Parse).ToArray();
-            return values.Length switch
-            {
-                1 => new Thickness(values[0]),
-                2 => new Thickness(values[0], values[1]),
-                4 => new Thickness(values[0], values[1], values[2], values[3]),
-                _ => new Thickness(0)
-            };
+            if (kvp.Value is null)
+                continue;
+
+            CachedPropertySetter.TrySet(v, kvp.Key, kvp.Value);
         }
-
-        return value;
     }
-
-    private static LayoutOptions GetLayoutOptions(string alignment) =>
-        alignment.ToLower() switch
-        {
-            "start" => LayoutOptions.Start,
-            "center" => LayoutOptions.Center,
-            "end" => LayoutOptions.End,
-            "fill" => LayoutOptions.Fill,
-            _ => LayoutOptions.Center
-        };
 
     private Layout WrapInLayout(View mauiComponent)
     {
         if (UseVerticalStack)
         {
-            var stackLayout = new VerticalStackLayout
+            var stack = new VerticalStackLayout
             {
                 VerticalOptions = VerticalOptions ?? LayoutOptions.Start,
                 HorizontalOptions = HorizontalOptions ?? LayoutOptions.Start,
                 BackgroundColor = Colors.Transparent
             };
-            stackLayout.Children.Add(mauiComponent);
-            return stackLayout;
+            stack.Children.Add(mauiComponent);
+            return stack;
         }
 
         if (UseHorizontalStack)
         {
-            var stackLayout = new HorizontalStackLayout
+            var stack = new HorizontalStackLayout
             {
                 VerticalOptions = VerticalOptions ?? LayoutOptions.Start,
                 HorizontalOptions = HorizontalOptions ?? LayoutOptions.Start,
                 BackgroundColor = Colors.Transparent
             };
-            stackLayout.Children.Add(mauiComponent);
-            return stackLayout;
+            stack.Children.Add(mauiComponent);
+            return stack;
         }
 
         var grid = new Grid
         {
-            RowDefinitions = {new RowDefinition {Height = GridLength.Auto}},
-            ColumnDefinitions = {new ColumnDefinition {Width = GridLength.Auto}},
             HorizontalOptions = LayoutOptions.Start,
             VerticalOptions = LayoutOptions.Start,
             BackgroundColor = Colors.Transparent
         };
+
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.Children.Add(mauiComponent);
+
         return grid;
     }
 
     public async ValueTask RemoveElement(bool fade = false)
     {
         BlazorCallbackRegistry.Unregister(ElementId);
+
         await MainThread.InvokeOnMainThreadAsync(async () =>
         {
-            if (_overlayView != null)
-            {
-                if (fade)
-                    await _overlayView.FadeTo(0, 250);
+            if (_overlayView is null)
+                return;
 
-                if (_overlayView.Parent is Layout parentLayout)
-                {
-                    parentLayout.Children.Remove(_overlayView);
-                    Console.WriteLine("Successfully removed _overlayView from its parent.");
-                }
+            if (fade)
+                await _overlayView.FadeTo(0, 250);
 
-                _overlayView.Handler?.DisconnectHandler();
-                _overlayView.Handler = null;
-                _overlayView = null;
-            }
+            if (_overlayView.Parent is Layout parent)
+                parent.Children.Remove(_overlayView);
+
+            _overlayView.Handler?.DisconnectHandler();
+            _overlayView.Handler = null;
+            _overlayView = null;
         });
     }
 
     public async ValueTask DisposeAsync()
     {
-        GC.SuppressFinalize(this);
-        if (_overlayView != null)
+        try
         {
-            await RemoveElement().NoSync();
+            await _cts?.CancelAsync();
         }
+        catch
+        {
+        }
+
+        if (_contentPage is not null)
+            _contentPage.SizeChanged -= OnPageSizeChanged;
+
+        if (_overlayView is not null)
+            await RemoveElement();
     }
 
 }

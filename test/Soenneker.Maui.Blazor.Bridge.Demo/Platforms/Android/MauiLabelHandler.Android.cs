@@ -3,7 +3,7 @@ using Android.Widget;
 using Microsoft.Maui.Handlers;
 using Color = Android.Graphics.Color;
 
-namespace Soenneker.Maui.Blazor.Bridge.Demo;
+namespace Soenneker.Maui.Blazor.Bridge.Demo.Platforms.Android;
 
 public partial class MauiLabelHandler : ViewHandler<MauiLabel, TextView>
 {

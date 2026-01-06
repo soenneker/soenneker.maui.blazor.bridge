@@ -1,7 +1,7 @@
 ﻿using Android.App;
 using Android.Runtime;
 
-namespace Soenneker.Maui.Blazor.Bridge.Demo;
+namespace Soenneker.Maui.Blazor.Bridge.Demo.Platforms.Android;
 
 [Application]
 public class MainApplication : MauiApplication

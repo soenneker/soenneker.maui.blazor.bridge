@@ -4,210 +4,237 @@
 @using Microsoft.Maui.Graphics
 @using Microsoft.Maui.Layouts
 @using Soenneker.Blazor.CallbackRegistry.Abstract
-@using Soenneker.Extensions.Task
 @using Soenneker.Extensions.ValueTask
 @using Soenneker.Maui.Blazor.Bridge.Abstract
 @using Soenneker.Maui.Blazor.Bridge.Dtos
 @using System.Threading
 
-@inject IBlazorCallbackRegistry BlazorCallbackRegistry;
-@inject IMauiBlazorBridgeInterop MauiBlazorBridgeInterop;
+@inject IBlazorCallbackRegistry BlazorCallbackRegistry
+@inject IMauiBlazorBridgeInterop MauiBlazorBridgeInterop
+
+@implements IAsyncDisposable
 
 @typeparam TComponent where TComponent : View, new()
 
-<div id="@ElementId" @ref="_elementReference" ></div>
+<div id="@ElementId" @ref="_elementReference"></div>
 
 @code {
-
-    // Unique ID used for element interop.
     private ElementReference _elementReference;
-    public readonly string ElementId = Guid.NewGuid().ToString();
+    public readonly string ElementId = Guid.NewGuid().ToString("N");
 
     [EditorRequired]
     [Parameter]
     public TComponent? Component { get; set; }
 
-    // The wrapped MAUI element that will be added to the overlay container.
     private View? _overlayView;
+    private AbsoluteLayout? _overlayContainer;
+    private ContentPage? _contentPage;
+    private IMauiContext? _mauiContext;
+
     private bool _initialized;
+    private CancellationTokenSource? _cts;
+
+    private double _pageHeight;
+    private double _lastYProportion = double.NaN;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (Component == null)
-            return;
-
-        if (_initialized)
+        if (_initialized || Component is null)
             return;
 
         _initialized = true;
+        _cts = new CancellationTokenSource();
 
         await MauiBlazorBridgeInterop.Initialize().NoSync();
 
-        await BlazorCallbackRegistry.Register<ElementPositionDto>(ElementId, async result => { await OnElementPositionReported(null, result).NoSync(); }).NoSync();
+        await BlazorCallbackRegistry.Register<MauiBlazorTypedBridge<TComponent>, ElementPositionDto>(
+            ElementId,
+            this,
+            static (self, dto) => self.OnElementPositionReported(dto),
+            _cts.Token).NoSync();
 
-        // Render the MAUI element on the Main thread.
-        await MainThread.InvokeOnMainThreadAsync(async () => { await RenderMauiElement().NoSync(); }).NoSync();
+        await RenderMauiElement(_cts.Token).NoSync();
     }
 
-    private async ValueTask RenderMauiElement(CancellationToken cancellationToken = default)
+    private async ValueTask RenderMauiElement(CancellationToken cancellationToken)
     {
-        // Get the current window and ensure its Page is a ContentPage.
+        if (Component is null)
+            return;
+
         Window? window = Application.Current?.Windows.FirstOrDefault();
-        if (window == null)
+        if (window?.Page is not ContentPage contentPage)
         {
-            Console.WriteLine("No window available.");
+            Console.WriteLine("No ContentPage available.");
             return;
         }
 
-        if (!(window.Page is ContentPage contentPage))
+        _contentPage = contentPage;
+
+        _overlayContainer ??= contentPage.FindByName<AbsoluteLayout>("OverlayContainer");
+        if (_overlayContainer is null)
         {
-            Console.WriteLine("Page is not a ContentPage.");
+            Console.WriteLine("Overlay container not found. Ensure ContentPage XAML defines AbsoluteLayout x:Name=\"OverlayContainer\".");
             return;
         }
 
-        // Wait until the ContentPage's Handler and MauiContext are available.
-        while (contentPage.Handler?.MauiContext == null)
-        {
+        while (!cancellationToken.IsCancellationRequested && contentPage.Handler?.MauiContext is null)
             await Task.Delay(50, cancellationToken);
-        }
 
-        IMauiContext? mauiContext = contentPage.Handler.MauiContext;
-
-        // Retrieve the pre-defined overlay container by name.
-        var overlayContainer = contentPage.FindByName<AbsoluteLayout>("OverlayContainer");
-        if (overlayContainer == null)
-        {
-            Console.WriteLine("Overlay container not found. Ensure your ContentPage XAML defines an AbsoluteLayout with x:Name=\"OverlayContainer\".");
+        _mauiContext = contentPage.Handler?.MauiContext;
+        if (_mauiContext is null)
             return;
-        }
 
-        // Ensure the MAUI component has a handler.
-        if (Component.Handler == null)
+        HookPageSize(contentPage);
+
+        // Ensure handler + add overlay must run on main thread
+        await MainThread.InvokeOnMainThreadAsync(() =>
         {
-            IElementHandler? handler = mauiContext.Handlers.GetHandler(Component.GetType());
-            if (handler is IViewHandler viewHandler)
-            {
-                viewHandler.SetMauiContext(mauiContext);
-                viewHandler.SetVirtualView(Component);
-                Component.Handler = viewHandler;
-                Console.WriteLine("Handler forced via MauiContext.");
-            }
-            else
-            {
-                Console.WriteLine("Failed to get an IViewHandler from MauiContext.");
-            }
-        }
+            if (Component is null || _overlayContainer is null || _mauiContext is null)
+                return;
 
-        // Wrap the MAUI component in a container (here a simple Grid).
-        Layout wrappedComponent = WrapInLayout(Component);
-        // Start with zero opacity for fade-in.
-        wrappedComponent.Opacity = 0;
-        _overlayView = wrappedComponent;
+            EnsureHandler(Component, _mauiContext);
 
-        // Set absolute positioning so that it appears at the desired location.
-        AbsoluteLayout.SetLayoutFlags(_overlayView, AbsoluteLayoutFlags.PositionProportional);
-        AbsoluteLayout.SetLayoutBounds(_overlayView, new Rect(0.5, 0.8, AbsoluteLayout.AutoSize, AbsoluteLayout.AutoSize));
+            Layout wrapped = WrapInLayout(Component);
+            wrapped.Opacity = 0;
 
-        // Add the wrapped component to the overlay container.
-        overlayContainer.Children.Add(_overlayView);
+            _overlayView = wrapped;
 
-        // Brief delay for layout pass, then animate the fade in.
+            AbsoluteLayout.SetLayoutFlags(wrapped, AbsoluteLayoutFlags.PositionProportional);
+            AbsoluteLayout.SetLayoutBounds(wrapped, new Rect(0.5, 0.8, AbsoluteLayout.AutoSize, AbsoluteLayout.AutoSize));
+
+            _overlayContainer.Children.Add(wrapped);
+        });
+
+        // Brief delay for layout pass, then fade in (FadeTo must be on main thread)
         await Task.Delay(50, cancellationToken);
-        await _overlayView.FadeTo(1, 250);
 
-        // Set up additional interop (for example, observing element position).
+        View? overlay = _overlayView;
+        if (overlay is not null)
+            await MainThread.InvokeOnMainThreadAsync(() => overlay.FadeTo(1, 250));
+
         await MauiBlazorBridgeInterop.ObserveElementPosition(_elementReference, ElementId, cancellationToken).NoSync();
     }
 
-    private async Task OnElementPositionReported(object? sender, ElementPositionDto e)
+    private void HookPageSize(ContentPage page)
     {
-        double height = await GetPageHeight();
+        if (page.Height > 0)
+            _pageHeight = page.Height;
+
+        page.SizeChanged -= OnPageSizeChanged;
+        page.SizeChanged += OnPageSizeChanged;
+    }
+
+    private void OnPageSizeChanged(object? sender, EventArgs e)
+    {
+        if (sender is Page p && p.Height > 0)
+            _pageHeight = p.Height;
+    }
+
+    private Task OnElementPositionReported(ElementPositionDto e)
+    {
+        double height = _pageHeight;
+
+        if (height <= 0 || e.ViewportHeight <= 0)
+            return Task.CompletedTask;
 
         // Compute conversion factor (Maui page height / viewport height).
         double conversionFactor = height / e.ViewportHeight;
-        double dynamicOffsetCss = e.Height * 0.5;
-        double overlayYCss = e.Top + e.Height + dynamicOffsetCss;
+        double overlayYCss = e.Top + e.Height + (e.Height * 0.5);
         double overlayYMaui = overlayYCss * conversionFactor;
         double yProportion = overlayYMaui / height;
 
-        await MainThread.InvokeOnMainThreadAsync(() =>
+        if (NearlyEqual(_lastYProportion, yProportion, 0.0005))
+            return Task.CompletedTask;
+
+        _lastYProportion = yProportion;
+
+        return MainThread.InvokeOnMainThreadAsync(() =>
         {
-            if (_overlayView != null)
-            {
-                AbsoluteLayout.SetLayoutFlags(_overlayView, AbsoluteLayoutFlags.PositionProportional);
-                AbsoluteLayout.SetLayoutBounds(_overlayView, new Rect(0.5, yProportion, AbsoluteLayout.AutoSize, AbsoluteLayout.AutoSize));
-            }
+            if (_overlayView is null)
+                return;
+
+            AbsoluteLayout.SetLayoutFlags(_overlayView, AbsoluteLayoutFlags.PositionProportional);
+            AbsoluteLayout.SetLayoutBounds(_overlayView, new Rect(0.5, yProportion, AbsoluteLayout.AutoSize, AbsoluteLayout.AutoSize));
         });
     }
 
-    private static async ValueTask<double> GetPageHeight()
+    private static bool NearlyEqual(double a, double b, double epsilon)
     {
-        Page? page = Application.Current?.Windows.FirstOrDefault()?.Page;
-        double? height = page?.Height;
-        while (height is null or <= 0)
-        {
-            await Task.Delay(100);
-            height = page?.Height;
-        }
+        if (double.IsNaN(a) || double.IsNaN(b))
+            return false;
 
-        return height.Value;
+        return Math.Abs(a - b) <= epsilon;
     }
 
-    // Wraps the provided MAUI component in a simple Grid container.
+    private static void EnsureHandler(View view, IMauiContext mauiContext)
+    {
+        if (view.Handler is not null)
+            return;
+
+        IElementHandler? handler = mauiContext.Handlers.GetHandler(view.GetType());
+        if (handler is IViewHandler viewHandler)
+        {
+            viewHandler.SetMauiContext(mauiContext);
+            viewHandler.SetVirtualView(view);
+            view.Handler = viewHandler;
+        }
+    }
+
     private static Layout WrapInLayout(View mauiComponent)
     {
+        // Slightly cheaper than collection initializer (avoids temporary enumerator paths)
         var grid = new Grid
         {
-            RowDefinitions = {new RowDefinition {Height = GridLength.Auto}},
-            ColumnDefinitions = {new ColumnDefinition {Width = GridLength.Auto}},
             HorizontalOptions = LayoutOptions.Start,
             VerticalOptions = LayoutOptions.Start,
             BackgroundColor = Colors.Transparent
         };
+
+        grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.Children.Add(mauiComponent);
+
         return grid;
     }
 
-    // Removes the overlay element from the overlay container.
     public async ValueTask RemoveElement(bool fade = false)
     {
         BlazorCallbackRegistry.Unregister(ElementId);
 
+        try { await _cts?.CancelAsync(); } catch { }
+
+        Page? page = _contentPage;
+        if (page is not null)
+            page.SizeChanged -= OnPageSizeChanged;
+
         await MainThread.InvokeOnMainThreadAsync(async () =>
         {
-            if (_overlayView != null)
-            {
-                if (fade)
-                    await _overlayView.FadeTo(0, 250);
+            if (_overlayView is null)
+                return;
 
-                if (_overlayView.Parent is Layout parentLayout)
-                {
-                    parentLayout.Children.Remove(_overlayView);
-                    Console.WriteLine("Overlay view removed from overlay container.");
-                }
+            if (fade)
+                await _overlayView.FadeTo(0, 250);
 
-                _overlayView.Handler?.DisconnectHandler();
-                _overlayView.Handler = null;
-                _overlayView = null;
-            }
+            if (_overlayView.Parent is Layout parentLayout)
+                parentLayout.Children.Remove(_overlayView);
+
+            _overlayView.Handler?.DisconnectHandler();
+            _overlayView.Handler = null;
+            _overlayView = null;
         });
 
-        if (Component != null)
+        // Be careful: Component is a [Parameter]. Nulling it is surprising to callers.
+        // Prefer leaving it alone; just disconnect handlers.
+        if (Component is not null)
         {
             Component.DisconnectHandlers();
             Component.Handler = null;
-            Component = null;
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        GC.SuppressFinalize(this);
-
-        if (_overlayView != null)
-        {
-            await RemoveElement().NoSync();
-        }
+        if (_overlayView is not null)
+            await RemoveElement();
     }
-
 }

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Soenneker.Maui.Blazor.Bridge.Demo.Platforms.Android;
 using Soenneker.Maui.Blazor.Bridge.Registrars;
 
 namespace Soenneker.Maui.Blazor.Bridge.Demo;
