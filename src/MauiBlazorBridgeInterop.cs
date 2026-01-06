@@ -3,7 +3,6 @@ using Microsoft.JSInterop;
 using Soenneker.Blazor.Utils.ResourceLoader.Abstract;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Maui.Blazor.Bridge.Abstract;
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Soenneker.Asyncs.Initializers;
@@ -11,7 +10,7 @@ using Soenneker.Asyncs.Initializers;
 namespace Soenneker.Maui.Blazor.Bridge;
 
 ///<inheritdoc cref="IMauiBlazorBridgeInterop"/>
-public class MauiBlazorBridgeInterop : IMauiBlazorBridgeInterop
+public sealed class MauiBlazorBridgeInterop : IMauiBlazorBridgeInterop
 {
     private readonly AsyncInitializer _moduleInitializer;
 
@@ -45,8 +44,6 @@ public class MauiBlazorBridgeInterop : IMauiBlazorBridgeInterop
 
     public async ValueTask DisposeAsync()
     {
-        GC.SuppressFinalize(this);
-
         await _resourceLoader.DisposeModule(_module).NoSync();
 
         await _moduleInitializer.DisposeAsync().NoSync();
