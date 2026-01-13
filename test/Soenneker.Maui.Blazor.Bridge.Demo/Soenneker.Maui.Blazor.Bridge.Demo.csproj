@@ -51,7 +51,7 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
         <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.20" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.1" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.2" />
     </ItemGroup>
 
     <ItemGroup>
