@@ -1,4 +1,5 @@
-﻿# ![](https://user-images.githubusercontent.com/4441470/224455560-91ed3ee7-f510-4041-a8d2-3fc093025112.png) Soenneker.Maui.Blazor.Bridge
+# ![](https://user-images.githubusercontent.com/4441470/224455560-91ed3ee7-f510-4041-a8d2-3fc093025112.png) Soenneker.Maui.Blazor.Bridge
+[![](https://img.shields.io/github/actions/workflow/status/soenneker/soenneker.maui.blazor.bridge/codeql.yml?label=CodeQL&style=for-the-badge)](https://github.com/soenneker/soenneker.maui.blazor.bridge/actions/workflows/codeql.yml)
 
 [![](https://img.shields.io/nuget/v/soenneker.maui.blazor.bridge.svg?style=for-the-badge)](https://www.nuget.org/packages/soenneker.maui.blazor.bridge/)
 [![](https://img.shields.io/github/actions/workflow/status/soenneker/soenneker.maui.blazor.bridge/publish-package.yml?style=for-the-badge)](https://github.com/soenneker/soenneker.maui.blazor.bridge/actions/workflows/publish-package.yml)
@@ -9,15 +10,15 @@
 
 ---
 
-## 🚀 Features  
+## ?? Features  
 
-✅ Embed MAUI components directly inside **BlazorWebView** like HTML elements.  
-✅ Maintain a structured overlay system for native elements.  
-✅ Provides **typed** and **generic** bridges for flexible component integration.  
+? Embed MAUI components directly inside **BlazorWebView** like HTML elements.  
+? Maintain a structured overlay system for native elements.  
+? Provides **typed** and **generic** bridges for flexible component integration.  
 
 ---
 
-## 📦 Installation  
+## ?? Installation  
 
 Install the package via NuGet:
 
@@ -37,7 +38,7 @@ public static MauiApp CreateMauiApp()
 
 ---
 
-## 🛠️ Layout Setup  
+## ??? Layout Setup  
 
 To integrate MAUI components within BlazorWebView, modify your `MainPage.xaml`.  
 Wrap the **BlazorWebView** inside a `Grid`, and include an **AbsoluteLayout** (`OverlayContainer`) to host native elements:
@@ -61,14 +62,14 @@ This setup ensures that MAUI-native elements overlay correctly within your Blazo
 
 ---
 
-## ⚡ Usage  
+## ? Usage  
 
 To bridge MAUI elements into Blazor, use either:  
 
 - **`MauiBlazorTypedBridge<T>`** (Typed binding)
 - **`MauiBlazorGenericBridge`** (Generic binding)
 
-### 🏗️ Example: Embedding a `MauiLabel` in Blazor  
+### ??? Example: Embedding a `MauiLabel` in Blazor  
 
 ```razor
 @page "/"
