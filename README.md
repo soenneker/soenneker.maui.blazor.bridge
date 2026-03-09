@@ -11,9 +11,9 @@
 
 ## Features  
 
-? Embed MAUI components directly inside **BlazorWebView** like HTML elements.  
-? Maintain a structured overlay system for native elements.  
-? Provides **typed** and **generic** bridges for flexible component integration.  
+- Embed MAUI components directly inside **BlazorWebView** like HTML elements.  
+- Maintain a structured overlay system for native elements.  
+- Provides **typed** and **generic** bridges for flexible component integration.  
 
 ---
 
