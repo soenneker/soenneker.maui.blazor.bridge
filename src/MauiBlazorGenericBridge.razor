@@ -19,8 +19,7 @@
 @code {
     private ElementReference _elementReference;
 
-    public readonly string ElementId = Guid.NewGuid()
-                                           .ToString("N");
+    public readonly string ElementId = Guid.NewGuid().ToString();
 
     [EditorRequired]
     [Parameter]
@@ -165,7 +164,7 @@
         });
 
         await Task.Delay(50, cancellationToken);
-        await wrappedComponent.FadeTo(1, 250);
+        await wrappedComponent.FadeToAsync(1);
 
         await MauiBlazorBridgeInterop.ObserveElementPosition(_elementReference, ElementId, cancellationToken);
     }
@@ -383,7 +382,7 @@
                 return;
 
             if (fade)
-                await _overlayView.FadeTo(0, 250);
+                await _overlayView.FadeToAsync(0);
 
             if (_overlayView.Parent is Layout parent)
                 parent.Children.Remove(_overlayView);
@@ -398,7 +397,10 @@
     {
         try
         {
-            await _cts?.CancelAsync();
+            if (_cts != null)
+            {
+                await _cts.CancelAsync();
+            }
         }
         catch
         {

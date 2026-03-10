@@ -16,11 +16,13 @@
 
 @typeparam TComponent where TComponent : View, new()
 
-<div id="@ElementId" @ref="_elementReference"></div>
+<div id="@ElementId" @ref="_elementReference" ></div>
 
 @code {
     private ElementReference _elementReference;
-    public readonly string ElementId = Guid.NewGuid().ToString("N");
+
+    public readonly string ElementId = Guid.NewGuid()
+                                           .ToString("N");
 
     [EditorRequired]
     [Parameter]
@@ -45,15 +47,14 @@
         _initialized = true;
         _cts = new CancellationTokenSource();
 
-        await MauiBlazorBridgeInterop.Initialize().NoSync();
+        await MauiBlazorBridgeInterop.Initialize()
+                                     .NoSync();
 
-        await BlazorCallbackRegistry.Register<MauiBlazorTypedBridge<TComponent>, ElementPositionDto>(
-            ElementId,
-            this,
-            static (self, dto) => self.OnElementPositionReported(dto),
-            _cts.Token).NoSync();
+        await BlazorCallbackRegistry.Register<MauiBlazorTypedBridge<TComponent>, ElementPositionDto>(ElementId, this, static (self, dto) => self.OnElementPositionReported(dto), _cts.Token)
+                                    .NoSync();
 
-        await RenderMauiElement(_cts.Token).NoSync();
+        await RenderMauiElement(_cts.Token)
+            .NoSync();
     }
 
     private async ValueTask RenderMauiElement(CancellationToken cancellationToken)
@@ -110,9 +111,10 @@
 
         View? overlay = _overlayView;
         if (overlay is not null)
-            await MainThread.InvokeOnMainThreadAsync(() => overlay.FadeTo(1, 250));
+            await MainThread.InvokeOnMainThreadAsync(() => overlay.FadeToAsync(1, 250));
 
-        await MauiBlazorBridgeInterop.ObserveElementPosition(_elementReference, ElementId, cancellationToken).NoSync();
+        await MauiBlazorBridgeInterop.ObserveElementPosition(_elementReference, ElementId, cancellationToken)
+                                     .NoSync();
     }
 
     private void HookPageSize(ContentPage page)
@@ -201,7 +203,14 @@
     {
         BlazorCallbackRegistry.Unregister(ElementId);
 
-        try { await _cts?.CancelAsync(); } catch { }
+        try
+        {
+            if (_cts != null)
+                await _cts.CancelAsync();
+        }
+        catch
+        {
+        }
 
         Page? page = _contentPage;
         if (page is not null)
@@ -213,7 +222,7 @@
                 return;
 
             if (fade)
-                await _overlayView.FadeTo(0, 250);
+                await _overlayView.FadeToAsync(0);
 
             if (_overlayView.Parent is Layout parentLayout)
                 parentLayout.Children.Remove(_overlayView);
@@ -237,4 +246,5 @@
         if (_overlayView is not null)
             await RemoveElement();
     }
+
 }
