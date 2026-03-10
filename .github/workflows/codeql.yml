@@ -2,7 +2,9 @@ name: codeql
 
 on:
   push:
-    branches: [main]
+    branches: [ "main" ]
+    paths-ignore:
+      - 'test/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -15,40 +17,29 @@ permissions:
 
 jobs:
   analyze:
-    name: CodeQL Analysis
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [csharp]
+    name: CodeQL Analysis
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Setup .NET 10 + MAUI Android workload
+      - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.0.x'
-          workloads: maui-android
+          dotnet-version: '10.x'
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
-          languages: ${{ matrix.language }}
+          languages: csharp
+          build-mode: manual
 
-      - name: Restore
-        run: |
-          dotnet restore ./src/Soenneker.Maui.Blazor.Bridge.csproj
-          dotnet restore ./test/Soenneker.Maui.Blazor.Bridge.Tests/Soenneker.Maui.Blazor.Bridge.Tests.csproj
-          dotnet restore ./test/Soenneker.Maui.Blazor.Bridge.Demo/Soenneker.Maui.Blazor.Bridge.Demo.csproj
+      - name: Restore src
+        run: dotnet restore ./src
 
-      - name: Build
-        run: |
-          dotnet build ./src/Soenneker.Maui.Blazor.Bridge.csproj -c Release --no-restore
-          dotnet build ./test/Soenneker.Maui.Blazor.Bridge.Tests/Soenneker.Maui.Blazor.Bridge.Tests.csproj -c Release --no-restore
-          dotnet build ./test/Soenneker.Maui.Blazor.Bridge.Demo/Soenneker.Maui.Blazor.Bridge.Demo.csproj -c Release --no-restore
+      - name: Build src
+        run: dotnet build ./src --no-restore -c Release
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
