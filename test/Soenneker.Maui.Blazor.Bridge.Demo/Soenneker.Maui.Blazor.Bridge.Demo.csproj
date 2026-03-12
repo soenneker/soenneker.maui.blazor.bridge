@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+<Project Sdk="Microsoft.NET.Sdk.Razor">
 
     <PropertyGroup>
         <TargetFramework>net10.0-android</TargetFramework>
@@ -55,7 +55,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\src\Soenneker.Maui.Blazor.Bridge.csproj" />
+      <ProjectReference Include="..\..\src\Soenneker.Maui.Blazor.Bridge\Soenneker.Maui.Blazor.Bridge.csproj" />
     </ItemGroup>
 
     <ItemGroup>
