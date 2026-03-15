@@ -56,7 +56,7 @@ jobs:
         run: dotnet restore test/Soenneker.Maui.Blazor.Bridge.Tests/Soenneker.Maui.Blazor.Bridge.Tests.csproj --verbosity minimal
 
       - name: Build tests
-        run: dotnet build test/Soenneker.Maui.Blazor.Bridge.Tests/Soenneker.Maui.Blazor.Bridge.Tests.csproj -configuration Release --no-restore --verbosity minimal
+        run: dotnet build test/Soenneker.Maui.Blazor.Bridge.Tests/Soenneker.Maui.Blazor.Bridge.Tests.csproj --configuration Release --no-restore --verbosity minimal
 
       - name: Test
         run: dotnet test test/Soenneker.Maui.Blazor.Bridge.Tests/Soenneker.Maui.Blazor.Bridge.Tests.csproj --configuration Release --no-build --no-restore --verbosity normal
