@@ -41,7 +41,7 @@ jobs:
         run: dotnet build test/Soenneker.Maui.Blazor.Bridge.Demo/Soenneker.Maui.Blazor.Bridge.Demo.csproj --configuration Release --no-restore --verbosity minimal
 
       - name: Test
-        run: dotnet test test/Soenneker.Maui.Blazor.Bridge.Demo/Soenneker.Maui.Blazor.Bridge.Demo.csproj -f net10.0 --configuration Release --no-build --no-restore --verbosity minimal
+        run: dotnet test test/Soenneker.Maui.Blazor.Bridge.Demo/Soenneker.Maui.Blazor.Bridge.Demo.csproj /p:TargetFramework=net10.0-android --configuration Release --no-build --no-restore --verbosity minimal
 
       - name: Pack
         run: dotnet pack src/Soenneker.Maui.Blazor.Bridge/Soenneker.Maui.Blazor.Bridge.csproj --configuration Release --no-build --no-restore --output . --verbosity minimal
