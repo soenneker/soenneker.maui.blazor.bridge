@@ -2,7 +2,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Soenneker.Fixtures.Unit;
-using Soenneker.Maui.Blazor.Bridge.Registrars;
 using Soenneker.Utils.Test;
 
 namespace Soenneker.Maui.Blazor.Bridge.Tests;
@@ -25,7 +24,5 @@ public sealed class Fixture : UnitFixture
 
         IConfiguration config = TestUtil.BuildConfig();
         services.AddSingleton(config);
-
-        services.AddMauiBlazorBridgeAsScoped();
     }
 }
