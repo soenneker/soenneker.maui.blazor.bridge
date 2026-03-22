@@ -30,14 +30,14 @@ public sealed class MauiBlazorBridgeInterop : IMauiBlazorBridgeInterop
         _moduleInitializer = new AsyncInitializer(InitializeModule);
     }
 
-    private ValueTask InitializeModule(CancellationToken token)
+    private async ValueTask InitializeModule(CancellationToken token)
     {
-        return _resourceLoader.ImportModuleAndWaitUntilAvailable(_module, _moduleNamespace, 100, token);
+        _ = await _resourceLoader.ImportModule(_module, token);
     }
 
     public async ValueTask Initialize(CancellationToken cancellationToken = default)
     {
-        var linked = _cancellationScope.CancellationToken.Link(cancellationToken, out var source);
+        CancellationToken linked = _cancellationScope.CancellationToken.Link(cancellationToken, out CancellationTokenSource? source);
 
         using (source)
             await _moduleInitializer.Init(linked);
@@ -45,7 +45,7 @@ public sealed class MauiBlazorBridgeInterop : IMauiBlazorBridgeInterop
 
     public async ValueTask ObserveElementPosition(ElementReference reference, string elementId, CancellationToken cancellationToken = default)
     {
-        var linked = _cancellationScope.CancellationToken.Link(cancellationToken, out var source);
+        CancellationToken linked = _cancellationScope.CancellationToken.Link(cancellationToken, out CancellationTokenSource? source);
 
         using (source)
             await _jSRuntime.InvokeVoidAsync("MauiBlazorBridgeInterop.observeElementPosition", linked, reference, elementId);
