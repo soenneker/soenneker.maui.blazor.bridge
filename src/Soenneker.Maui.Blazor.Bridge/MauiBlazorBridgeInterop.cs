@@ -15,7 +15,7 @@ public sealed class MauiBlazorBridgeInterop : IMauiBlazorBridgeInterop
 {
     private readonly CancellationScope _cancellationScope = new();
 
-    private const string _module = "_content/Soenneker.Maui.Blazor.Bridge/js/mauiblazorbridgeinterop.js";
+    private const string _module = "./_content/Soenneker.Maui.Blazor.Bridge/js/mauiblazorbridgeinterop.js";
     private const string _jsObserveElementPosition = "observeElementPosition";
 
     private readonly IModuleImportUtil _moduleImportUtil;
