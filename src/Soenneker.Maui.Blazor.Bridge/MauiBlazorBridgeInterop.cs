@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
-using Soenneker.Asyncs.Initializers;
-using Soenneker.Blazor.Utils.ResourceLoader.Abstract;
+using Soenneker.Blazor.Utils.ModuleImport.Abstract;
 using Soenneker.Extensions.CancellationTokens;
 using Soenneker.Extensions.ValueTask;
 using Soenneker.Maui.Blazor.Bridge.Abstract;
@@ -14,25 +13,16 @@ namespace Soenneker.Maui.Blazor.Bridge;
 ///<inheritdoc cref="IMauiBlazorBridgeInterop"/>
 public sealed class MauiBlazorBridgeInterop : IMauiBlazorBridgeInterop
 {
-    private readonly AsyncInitializer _moduleInitializer;
     private readonly CancellationScope _cancellationScope = new();
 
-    private const string _module = "Soenneker.Maui.Blazor.Bridge/js/mauiblazorbridgeinterop.js";
-    private const string _moduleNamespace = "MauiBlazorBridgeInterop";
+    private const string _module = "_content/Soenneker.Maui.Blazor.Bridge/js/mauiblazorbridgeinterop.js";
+    private const string _jsObserveElementPosition = "observeElementPosition";
 
-    private readonly IResourceLoader _resourceLoader;
-    private readonly IJSRuntime _jSRuntime;
+    private readonly IModuleImportUtil _moduleImportUtil;
 
-    public MauiBlazorBridgeInterop(IResourceLoader resourceLoader, IJSRuntime jSRuntime)
+    public MauiBlazorBridgeInterop(IModuleImportUtil moduleImportUtil)
     {
-        _resourceLoader = resourceLoader;
-        _jSRuntime = jSRuntime;
-        _moduleInitializer = new AsyncInitializer(InitializeModule);
-    }
-
-    private async ValueTask InitializeModule(CancellationToken token)
-    {
-        _ = await _resourceLoader.ImportModule(_module, token);
+        _moduleImportUtil = moduleImportUtil;
     }
 
     public async ValueTask Initialize(CancellationToken cancellationToken = default)
@@ -40,7 +30,7 @@ public sealed class MauiBlazorBridgeInterop : IMauiBlazorBridgeInterop
         CancellationToken linked = _cancellationScope.CancellationToken.Link(cancellationToken, out CancellationTokenSource? source);
 
         using (source)
-            await _moduleInitializer.Init(linked);
+            await _moduleImportUtil.GetContentModuleReference(_module, linked);
     }
 
     public async ValueTask ObserveElementPosition(ElementReference reference, string elementId, CancellationToken cancellationToken = default)
@@ -48,14 +38,18 @@ public sealed class MauiBlazorBridgeInterop : IMauiBlazorBridgeInterop
         CancellationToken linked = _cancellationScope.CancellationToken.Link(cancellationToken, out CancellationTokenSource? source);
 
         using (source)
-            await _jSRuntime.InvokeVoidAsync("MauiBlazorBridgeInterop.observeElementPosition", linked, reference, elementId);
+        {
+            IJSObjectReference module = await _moduleImportUtil.GetContentModuleReference(_module, linked);
+            await module.InvokeVoidAsync(_jsObserveElementPosition, linked, reference, elementId);
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
-        await _resourceLoader.DisposeModule(_module).NoSync();
+        await _moduleImportUtil.DisposeContentModule(_module)
+                               .NoSync();
 
-        await _moduleInitializer.DisposeAsync().NoSync();
-        await _cancellationScope.DisposeAsync().NoSync();
+        await _cancellationScope.DisposeAsync()
+                                .NoSync();
     }
 }

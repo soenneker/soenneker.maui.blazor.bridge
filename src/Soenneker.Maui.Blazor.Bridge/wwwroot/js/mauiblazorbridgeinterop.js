@@ -1,58 +1,43 @@
-﻿export class MauiBlazorBridgeInterop {
+﻿export function observeElementPosition(element, id) {
+    if (!element || !id)
+        return;
 
-    initialize(dotNetInstance) {
-        this.dotNetInstance = dotNetInstance;
-    }
+    let timeoutId = null;
 
-    observeElementPosition(element, id) {
-        if (!element || !id)
-            return;
+    const reportPosition = () => {
+        const rect = element.getBoundingClientRect();
 
-        let timeoutId = null;
-
-        // A helper function to report the element's position
-        const reportPosition = () => {
-            const rect = element.getBoundingClientRect();
-
-            var elementPositionDto = {
-                top: rect.top,
-                left: rect.left,
-                width: rect.width,
-                height: rect.height,
-                viewportHeight: window.innerHeight
-            };
-
-            window.CallbackRegistryInterop.sendToCallback(id, elementPositionDto);
+        var elementPositionDto = {
+            top: rect.top,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height,
+            viewportHeight: window.innerHeight
         };
 
-        // Debounce the reporting function
-        const debouncedReport = () => {
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-            }
-            timeoutId = setTimeout(() => {
-                reportPosition();
-                timeoutId = null;
-            }, 100); // Adjust delay as needed
-        };
+        window.CallbackRegistryInterop.sendToCallback(id, elementPositionDto);
+    };
 
-        // MutationObserver: watch for DOM changes that might affect layout.
-        const mutationObserver = new MutationObserver(() => {
-            debouncedReport();
-        });
-        mutationObserver.observe(document.body, {
-            attributes: true,
-            childList: true,
-            subtree: true
-        });
+    const debouncedReport = () => {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+        timeoutId = setTimeout(() => {
+            reportPosition();
+            timeoutId = null;
+        }, 100);
+    };
 
-        // Listen to scroll events, which can also change the element's position.
-        window.addEventListener('scroll', debouncedReport, { passive: true });
+    const mutationObserver = new MutationObserver(() => {
+        debouncedReport();
+    });
+    mutationObserver.observe(document.body, {
+        attributes: true,
+        childList: true,
+        subtree: true
+    });
 
-        // Optionally, report immediately on load.
-        reportPosition();
-    }
+    window.addEventListener('scroll', debouncedReport, { passive: true });
+
+    reportPosition();
 }
-
-// Export the instance for global use
-window.MauiBlazorBridgeInterop = new MauiBlazorBridgeInterop();
