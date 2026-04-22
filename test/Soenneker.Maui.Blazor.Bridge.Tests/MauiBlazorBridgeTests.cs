@@ -1,17 +1,16 @@
-﻿using Soenneker.Tests.FixturedUnit;
-using Xunit;
+using Soenneker.Tests.HostedUnit;
 
 namespace Soenneker.Maui.Blazor.Bridge.Tests;
 
-[Collection("Collection")]
-public class MauiBlazorBridgeTests : FixturedUnitTest
+[ClassDataSource<Host>(Shared = SharedType.PerTestSession)]
+public class MauiBlazorBridgeTests : HostedUnitTest
 {
-    public MauiBlazorBridgeTests(Fixture fixture, ITestOutputHelper output) : base(fixture, output)
+    public MauiBlazorBridgeTests(Host host) : base(host)
     {
 
     }
 
-    [Fact]
+    [Test]
     public void Default()
     {
 
