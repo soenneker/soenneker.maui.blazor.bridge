@@ -59,7 +59,7 @@ jobs:
         run: dotnet build test/Soenneker.Maui.Blazor.Bridge.Tests/Soenneker.Maui.Blazor.Bridge.Tests.csproj --configuration Release --no-restore --verbosity minimal
 
       - name: Test
-        run: dotnet test test/Soenneker.Maui.Blazor.Bridge.Tests/Soenneker.Maui.Blazor.Bridge.Tests.csproj --configuration Release --no-build --no-restore --verbosity normal
+        run: dotnet test --project test/Soenneker.Maui.Blazor.Bridge.Tests/Soenneker.Maui.Blazor.Bridge.Tests.csproj --configuration Release --no-build --no-restore --verbosity normal
 
       - name: Restore library
         run: dotnet restore src/Soenneker.Maui.Blazor.Bridge/Soenneker.Maui.Blazor.Bridge.csproj --verbosity minimal
