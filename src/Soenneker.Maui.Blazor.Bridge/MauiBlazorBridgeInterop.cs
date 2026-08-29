@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Soenneker.Maui.Blazor.Bridge;
 
-///<inheritdoc cref="IMauiBlazorBridgeInterop"/>
+/// <inheritdoc cref="IMauiBlazorBridgeInterop"/>
 public sealed class MauiBlazorBridgeInterop : IMauiBlazorBridgeInterop
 {
     private readonly CancellationScope _cancellationScope = new();
