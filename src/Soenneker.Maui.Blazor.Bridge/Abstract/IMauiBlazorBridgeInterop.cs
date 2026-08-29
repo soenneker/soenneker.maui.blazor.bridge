@@ -11,18 +11,18 @@ namespace Soenneker.Maui.Blazor.Bridge.Abstract;
 public interface IMauiBlazorBridgeInterop : IAsyncDisposable
 {
     /// <summary>
-    /// Executes the initialize operation.
+    /// Initializes the maui blazor bridge so it is ready for use.
     /// </summary>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>A task that completes when the maui blazor bridge is ready for use.</returns>
     ValueTask Initialize(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Executes the observe element position operation.
+    /// Observes element Position.
     /// </summary>
-    /// <param name="reference">The reference.</param>
-    /// <param name="elementId">The element id.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
+    /// <param name="reference">Reference for the observe element position operation.</param>
+    /// <param name="elementId">ID of the DOM element to target.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>A task that completes when the observe element position operation is complete.</returns>
     ValueTask ObserveElementPosition(ElementReference reference, string elementId, CancellationToken cancellationToken = default);
 }

@@ -11,10 +11,10 @@ namespace Soenneker.Maui.Blazor.Bridge.Registrars;
 public static class MauiBlazorBridgeRegistrar
 {
     /// <summary>
-    /// Adds maui blazor bridge as scoped.
+    /// Registers Maui Blazor Bridge with a scoped lifetime.
     /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <returns>The result of the operation.</returns>
+    /// <param name="services">Service collection that receives the registration.</param>
+    /// <returns>The same service collection, so additional registrations can be chained.</returns>
     public static IServiceCollection AddMauiBlazorBridgeAsScoped(this IServiceCollection services)
     {
         services.AddBlazorCallbackRegistryAsScoped().TryAddScoped<IMauiBlazorBridgeInterop, MauiBlazorBridgeInterop>();
