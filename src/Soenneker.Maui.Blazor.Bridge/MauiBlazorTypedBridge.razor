@@ -3,6 +3,7 @@
 @using Microsoft.Maui.Controls
 @using Microsoft.Maui.Graphics
 @using Microsoft.Maui.Layouts
+@using Microsoft.JSInterop
 @using Soenneker.Blazor.CallbackRegistry.Abstract
 @using Soenneker.Extensions.ValueTask
 @using Soenneker.Maui.Blazor.Bridge.Abstract
@@ -212,6 +213,14 @@
         {
         }
 
+        try
+        {
+            await MauiBlazorBridgeInterop.UnobserveElementPosition(ElementId);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+
         Page? page = _contentPage;
         if (page is not null)
             page.SizeChanged -= OnPageSizeChanged;
@@ -243,8 +252,9 @@
 
     public async ValueTask DisposeAsync()
     {
-        if (_overlayView is not null)
-            await RemoveElement();
+        await RemoveElement();
+        _cts?.Dispose();
+        _cts = null;
     }
 
 }

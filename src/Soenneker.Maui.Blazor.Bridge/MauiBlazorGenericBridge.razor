@@ -4,6 +4,7 @@
 @using Microsoft.Maui.Controls
 @using Microsoft.Maui.Graphics
 @using Microsoft.Maui.Layouts
+@using Microsoft.JSInterop
 @using Soenneker.Blazor.CallbackRegistry.Abstract
 @using Soenneker.Extensions.Double
 @using Soenneker.Maui.Blazor.Bridge.Abstract
@@ -376,6 +377,23 @@
     {
         BlazorCallbackRegistry.Unregister(ElementId);
 
+        try
+        {
+            if (_cts is not null)
+                await _cts.CancelAsync();
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            await MauiBlazorBridgeInterop.UnobserveElementPosition(ElementId);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+
         await MainThread.InvokeOnMainThreadAsync(async () =>
         {
             if (_overlayView is null)
@@ -395,22 +413,12 @@
 
     public async ValueTask DisposeAsync()
     {
-        try
-        {
-            if (_cts != null)
-            {
-                await _cts.CancelAsync();
-            }
-        }
-        catch
-        {
-        }
-
         if (_contentPage is not null)
             _contentPage.SizeChanged -= OnPageSizeChanged;
 
-        if (_overlayView is not null)
-            await RemoveElement();
+        await RemoveElement();
+        _cts?.Dispose();
+        _cts = null;
     }
 
 }

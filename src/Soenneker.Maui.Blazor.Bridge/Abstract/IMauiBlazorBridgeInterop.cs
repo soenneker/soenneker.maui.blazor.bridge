@@ -25,4 +25,12 @@ public interface IMauiBlazorBridgeInterop : IAsyncDisposable
     /// <param name="cancellationToken">Token used to cancel the operation.</param>
     /// <returns>A task that completes when the observe element position operation is complete.</returns>
     ValueTask ObserveElementPosition(ElementReference reference, string elementId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Stops observing the DOM element associated with the supplied identifier.
+    /// </summary>
+    /// <param name="elementId">Identifier passed to <see cref="ObserveElementPosition"/>.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>A task that completes when browser observers and event handlers have been removed.</returns>
+    ValueTask UnobserveElementPosition(string elementId, CancellationToken cancellationToken = default);
 }

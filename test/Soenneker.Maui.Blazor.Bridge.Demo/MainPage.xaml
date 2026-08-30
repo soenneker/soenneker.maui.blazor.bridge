@@ -4,10 +4,14 @@
              xmlns:local="clr-namespace:Soenneker.Maui.Blazor.Bridge.Demo"
              x:Class="Soenneker.Maui.Blazor.Bridge.Demo.MainPage">
 
-    <BlazorWebView x:Name="blazorWebView" HostPage="wwwroot/index.html">
-        <BlazorWebView.RootComponents>
-            <RootComponent Selector="#app" ComponentType="{x:Type local:Components.Routes}" />
-        </BlazorWebView.RootComponents>
-    </BlazorWebView>
+    <Grid>
+        <BlazorWebView x:Name="blazorWebView" HostPage="wwwroot/index.html">
+            <BlazorWebView.RootComponents>
+                <RootComponent Selector="#app" ComponentType="{x:Type local:Components.Routes}" />
+            </BlazorWebView.RootComponents>
+        </BlazorWebView>
+
+        <AbsoluteLayout x:Name="OverlayContainer" BackgroundColor="Transparent" />
+    </Grid>
 
 </ContentPage>

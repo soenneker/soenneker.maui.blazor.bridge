@@ -79,7 +79,7 @@ internal static class CachedPropertySetter
     {
         if (o is Color c) return c;
         if (o is string s) return Color.FromArgb(s);
-        return default;
+        throw new InvalidOperationException("The value cannot be converted to a color.");
     }
 
     private static LayoutOptions ConvertToLayoutOptions(object? o)

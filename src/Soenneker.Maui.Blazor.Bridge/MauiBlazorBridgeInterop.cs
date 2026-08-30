@@ -10,13 +10,13 @@ using System.Threading.Tasks;
 
 namespace Soenneker.Maui.Blazor.Bridge;
 
-/// <inheritdoc cref="IMauiBlazorBridgeInterop"/>
 public sealed class MauiBlazorBridgeInterop : IMauiBlazorBridgeInterop
 {
     private readonly CancellationScope _cancellationScope = new();
 
     private const string _module = "./_content/Soenneker.Maui.Blazor.Bridge/js/mauiblazorbridgeinterop.js";
     private const string _jsObserveElementPosition = "observeElementPosition";
+    private const string _jsUnobserveElementPosition = "unobserveElementPosition";
 
     private readonly IModuleImportUtil _moduleImportUtil;
 
@@ -44,16 +44,32 @@ public sealed class MauiBlazorBridgeInterop : IMauiBlazorBridgeInterop
         }
     }
 
+    public async ValueTask UnobserveElementPosition(string elementId, CancellationToken cancellationToken = default)
+    {
+        CancellationToken linked = _cancellationScope.CancellationToken.Link(cancellationToken, out CancellationTokenSource? source);
+
+        using (source)
+        {
+            IJSObjectReference module = await _moduleImportUtil.GetContentModuleReference(_module, linked);
+            await module.InvokeVoidAsync(_jsUnobserveElementPosition, linked, elementId);
+        }
+    }
+
     /// <summary>
     /// Asynchronously releases resources used by the current instance.
     /// </summary>
     /// <returns>A task that represents the asynchronous operation.</returns>
     public async ValueTask DisposeAsync()
     {
-        await _moduleImportUtil.DisposeContentModule(_module)
-                               .NoSync();
+        _cancellationScope.Cancel();
 
-        await _cancellationScope.DisposeAsync()
-                                .NoSync();
+        try
+        {
+            await _moduleImportUtil.DisposeContentModule(_module).NoSync();
+        }
+        finally
+        {
+            await _cancellationScope.DisposeAsync().NoSync();
+        }
     }
 }
