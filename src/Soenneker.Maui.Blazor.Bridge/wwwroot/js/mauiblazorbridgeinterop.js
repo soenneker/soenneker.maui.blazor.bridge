@@ -20,14 +20,16 @@
         window.CallbackRegistryInterop?.sendToCallback(id, elementPositionDto);
     };
 
+    const flushPosition = () => {
+        reportPosition();
+        timeoutId = null;
+    };
+
     const debouncedReport = () => {
         if (timeoutId) {
             clearTimeout(timeoutId);
         }
-        timeoutId = setTimeout(() => {
-            reportPosition();
-            timeoutId = null;
-        }, 100);
+        timeoutId = setTimeout(flushPosition, 100);
     };
 
     const mutationObserver = new MutationObserver(() => {
