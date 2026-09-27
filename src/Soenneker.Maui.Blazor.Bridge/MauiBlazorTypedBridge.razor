@@ -51,7 +51,7 @@
         await MauiBlazorBridgeInterop.Initialize()
                                      .NoSync();
 
-        await BlazorCallbackRegistry.Register<MauiBlazorTypedBridge<TComponent>, ElementPositionDto>(ElementId, this, static (self, dto) => self.OnElementPositionReported(dto), _cts.Token)
+        await BlazorCallbackRegistry.Register<MauiBlazorTypedBridge<TComponent>, ElementPositionDto>(ElementId, this, static (self, dto) => self.OnElementPositionReported(dto), BridgeJsonContext.Default.ElementPositionDto, _cts.Token)
                                     .NoSync();
 
         await RenderMauiElement(_cts.Token)

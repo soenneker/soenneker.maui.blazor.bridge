@@ -104,7 +104,7 @@
         await MauiBlazorBridgeInterop.Initialize();
 
         // Method group avoids extra async-lambda allocation
-        await BlazorCallbackRegistry.Register<ElementPositionDto>(ElementId, OnElementPositionReported);
+        await BlazorCallbackRegistry.Register<ElementPositionDto>(ElementId, OnElementPositionReported, BridgeJsonContext.Default.ElementPositionDto);
 
         await RenderMauiElement(_cts.Token);
     }
