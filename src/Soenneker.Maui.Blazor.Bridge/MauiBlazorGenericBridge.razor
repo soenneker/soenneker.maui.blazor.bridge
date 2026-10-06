@@ -1,4 +1,5 @@
-﻿@using System.Threading
+﻿@using System.Diagnostics.CodeAnalysis
+@using System.Threading
 @using Microsoft.Maui
 @using Microsoft.Maui.ApplicationModel
 @using Microsoft.Maui.Controls
@@ -22,8 +23,8 @@
 
     public readonly string ElementId = Guid.NewGuid().ToString();
 
-    [EditorRequired]
     [Parameter]
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | DynamicallyAccessedMemberTypes.PublicProperties)]
     public Type ComponentType { get; set; } = null!;
 
     [Parameter]
@@ -80,6 +81,24 @@
     // Don't allocate a Dictionary by default; let callers pass one if needed.
     [Parameter]
     public IReadOnlyDictionary<string, object?>? Properties { get; set; }
+
+    /// <summary>Creates a view without reflective constructor discovery.</summary>
+    [Parameter]
+    public Func<View>? ComponentFactory { get; set; }
+
+    /// <summary>Explicit property setters for custom views; keys match Properties.</summary>
+    [Parameter]
+    public IReadOnlyDictionary<string, Action<View, object?>>? PropertySetters { get; set; }
+
+    private void SetProperty(View view, string name, object? value)
+    {
+        if (PropertySetters?.TryGetValue(name, out var setter) == true)
+            setter(view, value);
+        else if (ComponentType is not null)
+            CachedPropertySetter.TrySet(ComponentType, view, name, value);
+        else
+            throw new InvalidOperationException($"Register a setter for property '{name}' when using ComponentFactory without ComponentType.");
+    }
 
     private View? _overlayView;
     private bool _initialized;
@@ -220,6 +239,9 @@
 
     private View? CreateMauiComponent()
     {
+        if (ComponentFactory is not null)
+            return ComponentFactory();
+
         if (!typeof(View).IsAssignableFrom(ComponentType))
         {
             Console.WriteLine($"Unsupported or non-view MAUI component: {ComponentType}");
@@ -303,16 +325,16 @@
 
                 default:
                     if (!string.IsNullOrEmpty(Text))
-                        CachedPropertySetter.TrySet(v, "Text", Text);
+                        SetProperty(v, "Text", Text);
 
                     if (!string.IsNullOrEmpty(TextColor))
-                        CachedPropertySetter.TrySet(v, "TextColor", TextColor); // string -> Color handled
+                        SetProperty(v, "TextColor", TextColor); // string -> Color handled
 
                     if (FontSize.HasValue)
-                        CachedPropertySetter.TrySet(v, "FontSize", FontSize.Value);
+                        SetProperty(v, "FontSize", FontSize.Value);
 
                     if (Padding.HasValue)
-                        CachedPropertySetter.TrySet(v, "Padding", Padding.Value);
+                        SetProperty(v, "Padding", Padding.Value);
                     break;
             }
         }
@@ -329,7 +351,7 @@
             if (kvp.Value is null)
                 continue;
 
-            CachedPropertySetter.TrySet(v, kvp.Key, kvp.Value);
+            SetProperty(v, kvp.Key, kvp.Value);
         }
     }
 

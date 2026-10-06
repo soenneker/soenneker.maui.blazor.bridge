@@ -1,4 +1,5 @@
-﻿using Microsoft.Maui;
+﻿using System.Diagnostics.CodeAnalysis;
+using Microsoft.Maui;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using System;
@@ -13,23 +14,23 @@ internal static class CachedPropertySetter
 {
     private static readonly ConcurrentDictionary<(Type type, string name), Action<object, object?>?> _cache = new();
 
-    public static void TrySet(object target, string propertyName, object? value)
+    public static void TrySet([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)] Type type, object target, string propertyName, object? value)
     {
         if (target is null || propertyName is null || value is null)
             return;
 
-        (Type, string propertyName) key = (target.GetType(), propertyName);
+        (Type, string propertyName) key = (type, propertyName);
 
-        Action<object, object?>? setter = _cache.GetOrAdd(key, static k =>
+        Action<object, object?>? setter = _cache.GetOrAdd(key, _ =>
         {
-            PropertyInfo? pi = k.type.GetProperty(k.name, BindingFlags.Instance | BindingFlags.Public);
+            PropertyInfo? pi = type.GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public);
             if (pi is null || !pi.CanWrite)
                 return null;
 
             ParameterExpression objParam = Expression.Parameter(typeof(object), "obj");
             ParameterExpression valParam = Expression.Parameter(typeof(object), "val");
 
-            UnaryExpression castObj = Expression.Convert(objParam, k.type);
+            UnaryExpression castObj = Expression.Convert(objParam, type);
             MemberExpression propExpr = Expression.Property(castObj, pi);
 
             Type propType = pi.PropertyType;
@@ -55,22 +56,22 @@ internal static class CachedPropertySetter
     private static Expression BuildConversionExpression(Type propType, ParameterExpression valParam)
     {
         if (propType == typeof(Color))
-            return Expression.Call(typeof(CachedPropertySetter), nameof(ConvertToColor), null, valParam);
+            return Expression.Call(((Func<object?, Color>)ConvertToColor).Method, valParam);
 
         if (propType == typeof(LayoutOptions))
-            return Expression.Call(typeof(CachedPropertySetter), nameof(ConvertToLayoutOptions), null, valParam);
+            return Expression.Call(((Func<object?, LayoutOptions>)ConvertToLayoutOptions).Method, valParam);
 
         if (propType == typeof(Thickness))
-            return Expression.Call(typeof(CachedPropertySetter), nameof(ConvertToThickness), null, valParam);
+            return Expression.Call(((Func<object?, Thickness>)ConvertToThickness).Method, valParam);
 
         if (propType == typeof(bool))
-            return Expression.Call(typeof(CachedPropertySetter), nameof(ConvertToBool), null, valParam);
+            return Expression.Call(((Func<object?, bool>)ConvertToBool).Method, valParam);
 
         if (propType == typeof(double))
-            return Expression.Call(typeof(CachedPropertySetter), nameof(ConvertToDouble), null, valParam);
+            return Expression.Call(((Func<object?, double>)ConvertToDouble).Method, valParam);
 
         if (propType == typeof(int))
-            return Expression.Call(typeof(CachedPropertySetter), nameof(ConvertToInt), null, valParam);
+            return Expression.Call(((Func<object?, int>)ConvertToInt).Method, valParam);
 
         return Expression.Convert(valParam, propType);
     }
