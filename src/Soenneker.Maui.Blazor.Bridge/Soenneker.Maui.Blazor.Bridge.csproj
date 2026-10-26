@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
+        <TargetFramework>net11.0</TargetFramework>
         <Nullable>enable</Nullable>
         <Platforms>AnyCPU</Platforms>
         <NoWarn>$(NoWarn);1591</NoWarn>
@@ -8,7 +8,7 @@
 
     <PropertyGroup>
         <Description>Seamlessly connects MAUI and Blazor, enabling smooth integration of native components into Blazor</Description>
-        <Version Condition="'$(BUILD_VERSION)' == ''">4.0.0</Version>
+        <Version Condition="'$(BUILD_VERSION)' == ''">11.0.0</Version>
         <Version Condition="'$(BUILD_VERSION)' != ''">$(BUILD_VERSION)</Version>
         <AssemblyName>Soenneker.Maui.Blazor.Bridge</AssemblyName>
         <PackageId>Soenneker.Maui.Blazor.Bridge</PackageId>
@@ -44,7 +44,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.Components" Version="10.0.14" />
+        <PackageReference Include="Microsoft.AspNetCore.Components" Version="11.0.0-rc.3.26522.148" />
         <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.120" />
         <PackageReference Include="Soenneker.Blazor.CallbackRegistry" Version="4.0.1189" />
         <PackageReference Include="Soenneker.Extensions.Double" Version="4.0.479" />
