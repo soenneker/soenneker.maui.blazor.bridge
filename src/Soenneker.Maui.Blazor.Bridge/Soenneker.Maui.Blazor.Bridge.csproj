@@ -4,6 +4,8 @@
         <Nullable>enable</Nullable>
         <Platforms>AnyCPU</Platforms>
         <NoWarn>$(NoWarn);1591</NoWarn>
+        <WebMinifierFolders>wwwroot/js</WebMinifierFolders>
+        <WebMinifierCssEnabled>false</WebMinifierCssEnabled>
     </PropertyGroup>
 
     <PropertyGroup>
@@ -48,5 +50,8 @@
         <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.120" />
         <PackageReference Include="Soenneker.Blazor.CallbackRegistry" Version="11.0.1197" />
         <PackageReference Include="Soenneker.Extensions.Double" Version="11.0.480" />
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Soenneker.Gen.Web.Minifier" Version="11.0.43" PrivateAssets="all" />
     </ItemGroup>
 </Project>
