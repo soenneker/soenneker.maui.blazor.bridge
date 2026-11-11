@@ -184,7 +184,7 @@
         });
 
         await Task.Delay(50, cancellationToken);
-        await wrappedComponent.FadeToAsync(1);
+        await wrappedComponent.FadeToAsync(1, 250, null, cancellationToken);
 
         await MauiBlazorBridgeInterop.ObserveElementPosition(_elementReference, ElementId, cancellationToken);
     }

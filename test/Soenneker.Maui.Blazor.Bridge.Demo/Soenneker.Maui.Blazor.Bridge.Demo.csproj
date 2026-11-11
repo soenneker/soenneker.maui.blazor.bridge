@@ -4,6 +4,7 @@
         <OutputType>Exe</OutputType>
         <RootNamespace>Soenneker.Maui.Blazor.Bridge.Demo</RootNamespace>
         <UseMaui>true</UseMaui>
+        <MauiXamlInflator>SourceGen</MauiXamlInflator>
         <SingleProject>true</SingleProject>
         <ImplicitUsings>enable</ImplicitUsings>
         <EnableDefaultCssItems>false</EnableDefaultCssItems>
