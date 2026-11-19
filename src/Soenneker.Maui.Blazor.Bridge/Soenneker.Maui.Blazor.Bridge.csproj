@@ -50,7 +50,7 @@
         <PackageReference Include="Microsoft.AspNetCore.Components" Version="11.0.0" />
         <PackageReference Include="Microsoft.Maui.Controls" Version="11.0.10" />
         <PackageReference Include="Soenneker.Blazor.CallbackRegistry" Version="11.0.1254" />
-        <PackageReference Include="Soenneker.Extensions.Double" Version="11.0.482" />
+        <PackageReference Include="Soenneker.Extensions.Double" Version="11.0.483" />
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Soenneker.Gen.Web.Minifier" Version="11.0.86" PrivateAssets="all" />
