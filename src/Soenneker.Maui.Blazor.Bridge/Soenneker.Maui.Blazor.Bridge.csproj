@@ -53,6 +53,6 @@
         <PackageReference Include="Soenneker.Extensions.Double" Version="11.0.482" />
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="Soenneker.Gen.Web.Minifier" Version="11.0.76" PrivateAssets="all" />
+        <PackageReference Include="Soenneker.Gen.Web.Minifier" Version="11.0.86" PrivateAssets="all" />
     </ItemGroup>
 </Project>
